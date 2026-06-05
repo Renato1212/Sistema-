@@ -16,14 +16,8 @@ export function formatDateTime(date: Date | string): string {
   return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
 }
 
-export function formatCurrency(cents: number, currency: "BRL" | "EUR"): string {
+export function formatCurrency(cents: number, _currency?: string): string {
   const amount = cents / 100;
-  if (currency === "BRL") {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(amount);
-  }
   return new Intl.NumberFormat("pt-PT", {
     style: "currency",
     currency: "EUR",

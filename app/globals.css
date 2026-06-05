@@ -20,6 +20,8 @@ html {
   background-color: var(--color-marfim);
   color: var(--color-cacau);
   font-family: var(--font-hanken);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -27,20 +29,47 @@ body {
   background-color: #F4EDE2;
 }
 
-/* Fine hairline scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #F4EDE2; }
-::-webkit-scrollbar-thumb { background: #DACAB4; border-radius: 2px; }
+/* Smooth transitions on interactive elements */
+a, button, input, select, textarea {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-/* Focus ring */
+/* Apple-style fine scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(36,28,24,0.15); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(36,28,24,0.25); }
+
+/* Focus ring — champanhe glow */
 *:focus-visible {
   outline: 2px solid #B5915E;
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 6px;
+}
+
+/* Text selection */
+::selection {
+  background-color: rgba(181,145,94,0.2);
+  color: #241C18;
 }
 
 /* Isolinhas texture for decorative regions */
 .isolinhas {
   background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23DACAB4' stroke-width='0.5' opacity='0.4'%3E%3Ccircle cx='30' cy='30' r='28'/%3E%3Ccircle cx='30' cy='30' r='22'/%3E%3Ccircle cx='30' cy='30' r='16'/%3E%3Ccircle cx='30' cy='30' r='10'/%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 60px 60px;
+}
+
+/* Card utility */
+@layer components {
+  .cp-card {
+    @apply bg-white rounded-xl border border-black/5 shadow-card;
+  }
+  .cp-field {
+    @apply w-full px-3.5 py-2.5 text-sm bg-white border border-black/10 rounded-sm text-cacau placeholder:text-cacau/30 focus:outline-none focus:border-champanhe focus:ring-2 focus:ring-champanhe/15 transition-all;
+  }
+  .cp-label {
+    @apply text-[11px] font-medium text-cacau/50 uppercase tracking-wider block mb-1.5;
+  }
 }

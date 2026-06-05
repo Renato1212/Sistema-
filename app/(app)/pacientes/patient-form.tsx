@@ -23,7 +23,6 @@ export function PatientForm({ defaultValues, onSuccess, onCancel, patientId }: P
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<PatientInput>({
     resolver: zodResolver(patientSchema),
@@ -65,29 +64,31 @@ export function PatientForm({ defaultValues, onSuccess, onCancel, patientId }: P
       <Input label="Nome completo" error={errors.fullName?.message} {...register("fullName")} />
       <div className="grid grid-cols-2 gap-4">
         <Input label="Data de nascimento" type="date" {...register("birthDate")} />
-        <Input label="Telefone" {...register("phone")} placeholder="+55 11 99999-9999" />
+        <Input label="Telefone" {...register("phone")} placeholder="+351 91 000 0000" />
       </div>
       <Input label="E-mail" type="email" error={errors.email?.message} {...register("email")} />
       <Textarea label="Comentários" {...register("notes")} rows={3} />
 
       {/* Marketing consent */}
-      <div className="border border-areia rounded-sm p-4 bg-areia/10">
+      <div className="border border-black/8 rounded-xl p-4 bg-areia/10">
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
-            className="w-4 h-4 rounded border-areia text-champanhe focus:ring-champanhe accent-champanhe"
+            className="w-4 h-4 rounded border-areia/60 text-champanhe focus:ring-champanhe accent-champanhe"
             {...register("marketingConsent")}
           />
           <span className="text-sm text-cacau">Consentimento para Marketing</span>
         </label>
         {consentChecked && (
-          <div className="mt-3">
+          <div className="mt-3.5">
             <Input label="Data do consentimento" type="date" {...register("marketingConsentDate")} />
           </div>
         )}
       </div>
 
-      {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+      {error && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">{error}</p>
+      )}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>

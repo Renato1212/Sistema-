@@ -1,7 +1,5 @@
 import type { Config } from "tailwindcss";
 
-const phi = 1.618;
-
 const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -23,6 +21,18 @@ const config: Config = {
         newsreader: ["'Newsreader'", "Georgia", "serif"],
         hanken: ["'Hanken Grotesk'", "system-ui", "sans-serif"],
       },
+      borderRadius: {
+        sm: "10px",
+        DEFAULT: "12px",
+        lg: "16px",
+        xl: "20px",
+        "2xl": "24px",
+      },
+      boxShadow: {
+        card: "0 1px 3px rgba(36,28,24,0.05), 0 4px 16px rgba(36,28,24,0.04)",
+        "card-hover": "0 2px 8px rgba(36,28,24,0.08), 0 8px 24px rgba(36,28,24,0.07)",
+        apple: "0 4px 24px rgba(0,0,0,0.09), 0 1px 4px rgba(0,0,0,0.04)",
+      },
       spacing: {
         "phi-1": "8px",
         "phi-2": "13px",
@@ -37,10 +47,13 @@ const config: Config = {
         "display-md": ["1.75rem", { lineHeight: "1.2" }],
       },
       backgroundImage: {
-        "isolinhas": "url('/brand/isolinhas-pattern.svg')",
+        isolinhas: "url('/brand/isolinhas-pattern.svg')",
       },
       borderColor: {
         DEFAULT: "#DACAB4",
+      },
+      transitionDuration: {
+        DEFAULT: "200ms",
       },
     },
   },

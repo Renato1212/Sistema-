@@ -32,25 +32,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-marfim flex items-center justify-center relative overflow-hidden">
-      {/* Texture background */}
-      <div className="absolute inset-0 isolinhas opacity-60 pointer-events-none" />
+      <div className="absolute inset-0 isolinhas opacity-25 pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-sm mx-4">
         {/* Brand mark */}
         <div className="text-center mb-10">
-          <div className="w-16 h-16 rounded-full bg-cacau flex items-center justify-center text-white font-bodoni font-bold text-2xl mx-auto mb-5 shadow-lg">
+          <div className="w-20 h-20 rounded-full bg-cacau flex items-center justify-center text-white font-bodoni font-bold text-3xl mx-auto mb-6 shadow-apple ring-4 ring-cacau/10">
             CP
           </div>
-          <h1 className="font-bodoni text-2xl text-cacau tracking-wide">Cláudia Pacheco</h1>
-          <p className="text-xs text-cacau/50 font-hanken mt-1 uppercase tracking-widest">
+          <h1 className="font-bodoni text-[1.6rem] text-cacau tracking-wide leading-tight">Cláudia Pacheco</h1>
+          <p className="text-[11px] text-cacau/40 font-hanken mt-1.5 uppercase tracking-[0.18em]">
             Sistema de Gestão Clínica
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-areia rounded-sm shadow-sm p-8">
-          <h2 className="font-newsreader text-lg text-cacau mb-6 italic">Acesso restrito</h2>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="bg-white/80 backdrop-blur-md border border-black/5 rounded-2xl shadow-apple px-8 py-9">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <Input
               name="email"
               type="email"
@@ -68,17 +66,17 @@ export default function LoginPage() {
               required
             />
             {error && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">
                 {error}
               </p>
             )}
-            <Button type="submit" size="lg" disabled={loading} className="mt-2 w-full">
+            <Button type="submit" size="lg" disabled={loading} className="mt-1 w-full">
               {loading ? "Entrando…" : "Entrar"}
             </Button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-cacau/30 mt-6">
+        <p className="text-center text-xs text-cacau/25 mt-6">
           Acesso exclusivo para equipa da clínica.
         </p>
       </div>

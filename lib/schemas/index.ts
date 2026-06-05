@@ -16,7 +16,7 @@ export const procedureSchema = z.object({
   procedureTypeId: z.string().optional(),
   customName: z.string().optional(),
   amountCents: z.number().int().positive("Valor obrigatório"),
-  currency: z.enum(["BRL", "EUR"]),
+  currency: z.literal("EUR"),
   date: z.string().min(1, "Data obrigatória"),
   notes: z.string().optional(),
 });

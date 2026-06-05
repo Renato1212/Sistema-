@@ -10,7 +10,6 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { startOfMonth, startOfYear, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type Currency = "BRL" | "EUR";
 type Preset = "today" | "week" | "month" | "year" | "custom";
 
 interface DashboardData {
@@ -37,7 +36,7 @@ function getPresetDates(preset: Preset): { from: string; to: string } {
 }
 
 export function DashboardClient() {
-  const [currency, setCurrency] = useState<Currency>("BRL");
+  const currency = "EUR";
   const [preset, setPreset] = useState<Preset>("month");
   const [dates, setDates] = useState(getPresetDates("month"));
   const [data, setData] = useState<DashboardData | null>(null);
@@ -49,7 +48,7 @@ export function DashboardClient() {
     const res = await fetch(`/api/dashboard?${params}`);
     setData(await res.json());
     setLoading(false);
-  }, [dates, currency]);
+  }, [dates]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -67,19 +66,20 @@ export function DashboardClient() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-6xl">
       <h1 className="font-bodoni text-display-md text-cacau mb-8">Dashboard</h1>
 
       {/* Controls */}
-      <div className="bg-white border border-areia rounded-sm p-4 mb-8 flex flex-wrap gap-4 items-center">
-        {/* Presets */}
-        <div className="flex items-center gap-1 border border-areia rounded-sm p-0.5">
+      <div className="cp-card p-4 mb-8 flex flex-wrap gap-4 items-center">
+        <div className="flex items-center gap-1 bg-marfim rounded-xl p-1">
           {presets.map((p) => (
             <button
               key={p.key}
               onClick={() => selectPreset(p.key)}
-              className={`px-3 py-1.5 text-xs rounded-sm transition-colors ${
-                preset === p.key ? "bg-champanhe text-white" : "text-cacau/60 hover:text-cacau"
+              className={`px-3.5 py-1.5 text-xs rounded-lg transition-all duration-200 ${
+                preset === p.key
+                  ? "bg-champanhe text-white shadow-sm"
+                  : "text-cacau/50 hover:text-cacau"
               }`}
             >
               {p.label}
@@ -87,31 +87,21 @@ export function DashboardClient() {
           ))}
         </div>
 
-        {/* Custom date range */}
         {preset === "custom" && (
           <div className="flex items-center gap-2">
-            <input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))}
-              className="px-3 py-1.5 text-sm border border-areia rounded-sm focus:outline-none focus:border-champanhe" />
-            <span className="text-cacau/40 text-xs">–</span>
-            <input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))}
-              className="px-3 py-1.5 text-sm border border-areia rounded-sm focus:outline-none focus:border-champanhe" />
+            <input type="date" value={dates.from}
+              onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))}
+              className="cp-field px-3 py-1.5 text-sm w-auto" />
+            <span className="text-cacau/30 text-xs">–</span>
+            <input type="date" value={dates.to}
+              onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))}
+              className="cp-field px-3 py-1.5 text-sm w-auto" />
           </div>
         )}
 
-        {/* Currency */}
-        <div className="flex items-center gap-1 border border-areia rounded-sm p-0.5 ml-auto">
-          {(["BRL", "EUR"] as Currency[]).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCurrency(c)}
-              className={`px-4 py-1.5 text-xs rounded-sm transition-colors ${
-                currency === c ? "bg-champanhe text-white" : "text-cacau/60 hover:text-cacau"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
+        <span className="ml-auto text-xs text-cacau/40 border border-black/8 rounded-full px-3 py-1">
+          € Euro
+        </span>
       </div>
 
       {loading ? (
@@ -119,40 +109,42 @@ export function DashboardClient() {
       ) : !data || data.byDate.length === 0 ? (
         <div className="text-center py-20 text-cacau/40">
           <p className="font-newsreader italic text-lg">Sem dados para o período selecionado.</p>
-          <p className="text-sm mt-1">Tente expandir o período ou trocar a moeda.</p>
+          <p className="text-sm mt-1">Tente expandir o período.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-8">
           {/* Total KPI */}
-          <div className="isolinhas bg-cacau text-white rounded-sm p-8">
-            <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Faturamento no período</p>
+          <div className="isolinhas bg-cacau text-white rounded-xl p-8">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-white/40 mb-3">Faturamento no período</p>
             <p className="font-bodoni text-5xl">{formatCurrency(data.total, currency)}</p>
-            <p className="text-sm text-white/50 mt-2">
-              {dates.from === dates.to ? formatDate(dates.from) : `${formatDate(dates.from)} – ${formatDate(dates.to)}`} · {data.byDate.length} dia{data.byDate.length !== 1 ? "s" : ""} com receita
+            <p className="text-sm text-white/40 mt-2.5">
+              {dates.from === dates.to
+                ? formatDate(dates.from)
+                : `${formatDate(dates.from)} – ${formatDate(dates.to)}`} · {data.byDate.length} dia{data.byDate.length !== 1 ? "s" : ""} com receita
             </p>
           </div>
 
           {/* Revenue by date */}
           <section>
             <h2 className="font-bodoni text-xl text-cacau mb-4">Faturamento por período</h2>
-            <div className="bg-white border border-areia rounded-sm p-6">
+            <div className="cp-card p-6">
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={data.byDate}>
                   <defs>
                     <linearGradient id="champGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#B5915E" stopOpacity={0.2} />
+                      <stop offset="5%" stopColor="#B5915E" stopOpacity={0.18} />
                       <stop offset="95%" stopColor="#B5915E" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#DACAB4" strokeOpacity={0.5} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#DACAB4" strokeOpacity={0.4} />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9F6A53" }}
                     tickFormatter={(v) => format(new Date(v + "T12:00:00"), "dd/MM", { locale: ptBR })} />
                   <YAxis tick={{ fontSize: 11, fill: "#9F6A53" }}
-                    tickFormatter={(v) => `${currency === "BRL" ? "R$" : "€"}${(v / 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                    tickFormatter={(v) => `€${(v / 100).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}`} />
                   <Tooltip
                     formatter={(v: number) => [formatCurrency(v, currency), "Faturamento"]}
                     labelFormatter={(l) => formatDate(l)}
-                    contentStyle={{ border: "1px solid #DACAB4", borderRadius: 2, fontSize: 12 }}
+                    contentStyle={{ border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}
                   />
                   <Area type="monotone" dataKey="amount" stroke="#B5915E" strokeWidth={2} fill="url(#champGrad)" />
                 </AreaChart>
@@ -163,37 +155,37 @@ export function DashboardClient() {
           {/* By patient */}
           <section>
             <h2 className="font-bodoni text-xl text-cacau mb-4">Faturamento por paciente</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white border border-areia rounded-sm p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="cp-card p-6">
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={data.byPatient.slice(0, 8)} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#DACAB4" strokeOpacity={0.5} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#DACAB4" strokeOpacity={0.4} />
                     <XAxis type="number" tick={{ fontSize: 10, fill: "#9F6A53" }}
-                      tickFormatter={(v) => `${(v / 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                      tickFormatter={(v) => `€${(v / 100).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}`} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#241C18" }} width={120} />
                     <Tooltip
                       formatter={(v: number) => [formatCurrency(v, currency), "Total"]}
-                      contentStyle={{ border: "1px solid #DACAB4", borderRadius: 2, fontSize: 12 }}
+                      contentStyle={{ border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, fontSize: 12 }}
                     />
-                    <Bar dataKey="total" fill="#B5915E" radius={[0, 2, 2, 0]} />
+                    <Bar dataKey="total" fill="#B5915E" radius={[0, 6, 6, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="bg-white border border-areia rounded-sm overflow-hidden">
+              <div className="cp-card overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-areia/20 border-b border-areia">
+                  <thead className="bg-areia/10 border-b border-black/5">
                     <tr>
-                      <th className="text-left px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Paciente</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Total</th>
+                      <th className="text-left px-5 py-3 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Paciente</th>
+                      <th className="text-right px-5 py-3 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-areia/40">
+                  <tbody className="divide-y divide-black/[0.04]">
                     {data.byPatient.map((p) => (
-                      <tr key={p.id} className="hover:bg-areia/10">
-                        <td className="px-4 py-2.5">
+                      <tr key={p.id} className="hover:bg-areia/10 transition-colors">
+                        <td className="px-5 py-3">
                           <Link href={`/pacientes/${p.id}`} className="hover:text-champanhe transition-colors">{p.name}</Link>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(p.total, currency)}</td>
+                        <td className="px-5 py-3 text-right font-medium">{formatCurrency(p.total, currency)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -205,47 +197,39 @@ export function DashboardClient() {
           {/* By procedure */}
           <section>
             <h2 className="font-bodoni text-xl text-cacau mb-4">Faturamento por procedimento</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white border border-areia rounded-sm p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="cp-card p-6">
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
-                    <Pie
-                      data={data.byProcedure}
-                      dataKey="total"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      innerRadius={50}
-                    >
+                    <Pie data={data.byProcedure} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={50}>
                       {data.byProcedure.map((_, i) => (
                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(v: number) => [formatCurrency(v, currency), "Total"]}
-                      contentStyle={{ border: "1px solid #DACAB4", borderRadius: 2, fontSize: 12 }}
+                      contentStyle={{ border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, fontSize: 12 }}
                     />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="bg-white border border-areia rounded-sm overflow-hidden">
+              <div className="cp-card overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-areia/20 border-b border-areia">
+                  <thead className="bg-areia/10 border-b border-black/5">
                     <tr>
-                      <th className="text-left px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Procedimento</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Total</th>
+                      <th className="text-left px-5 py-3 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Procedimento</th>
+                      <th className="text-right px-5 py-3 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-areia/40">
+                  <tbody className="divide-y divide-black/[0.04]">
                     {data.byProcedure.map((p, i) => (
-                      <tr key={p.id} className="hover:bg-areia/10">
-                        <td className="px-4 py-2.5 flex items-center gap-2">
+                      <tr key={p.id} className="hover:bg-areia/10 transition-colors">
+                        <td className="px-5 py-3 flex items-center gap-2.5">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
                           {p.name}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(p.total, currency)}</td>
+                        <td className="px-5 py-3 text-right font-medium">{formatCurrency(p.total, currency)}</td>
                       </tr>
                     ))}
                   </tbody>

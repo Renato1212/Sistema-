@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     <dialog
       ref={dialogRef}
       className={clsx(
-        "rounded-sm shadow-2xl bg-marfim border border-areia backdrop:bg-cacau/40 backdrop:backdrop-blur-sm p-0 max-h-[90vh] overflow-y-auto",
+        "rounded-2xl shadow-apple bg-marfim border border-black/5 backdrop:bg-cacau/50 backdrop:backdrop-blur-sm p-0 max-h-[90vh] overflow-y-auto",
         {
           "w-full max-w-sm": size === "sm",
           "w-full max-w-lg": size === "md",
@@ -49,16 +49,16 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
         if (e.target === dialogRef.current) onClose();
       }}
     >
-      <div className="sticky top-0 z-10 bg-marfim border-b border-areia px-6 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-marfim/95 backdrop-blur-sm border-b border-black/5 px-6 py-4 flex items-center justify-between">
         {title && (
           <h2 className="font-bodoni text-lg text-cacau">{title}</h2>
         )}
         <button
           onClick={onClose}
-          className="ml-auto p-1 text-cacau/50 hover:text-cacau transition-colors rounded"
+          className="ml-auto p-1.5 text-cacau/40 hover:text-cacau hover:bg-black/5 rounded-full transition-all"
           aria-label="Fechar"
         >
-          <X size={18} />
+          <X size={17} />
         </button>
       </div>
       <div className="p-6">{children}</div>
