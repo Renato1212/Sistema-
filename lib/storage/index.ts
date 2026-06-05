@@ -1,51 +1,72 @@
-import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 
+// Vercel Blob is used only when a token is configured. Otherwise files are
+// persisted as bytes directly in Postgres — which works everywhere, including
+// Vercel's read-only serverless filesystem (where writing to ./storage fails).
 const USE_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
-const STORAGE_BASE = process.env.STORAGE_PATH || "./storage";
+
+export interface SaveResult {
+  /** Key stored on the attachment row and used in the /api/files/[key] route. */
+  storageKey: string;
+  /** Raw bytes to persist in the DB. Null when the file lives in Vercel Blob. */
+  data: Buffer | null;
+}
 
 export const Storage = {
-  async save(buffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+  async save(buffer: Buffer, fileName: string, mimeType: string): Promise<SaveResult> {
     const ext = path.extname(fileName);
     const key = `${randomUUID()}${ext}`;
 
     if (USE_BLOB) {
       const { put } = await import("@vercel/blob");
-      await put(key, buffer, { access: "public", contentType: mimeType });
-      // key is the blob url path segment; we store it as-is and use it to download
-    } else {
-      const dir = path.resolve(STORAGE_BASE);
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(path.join(dir, key), buffer);
+      const blob = await put(key, buffer, {
+        access: "public",
+        contentType: mimeType,
+        addRandomSuffix: false,
+      });
+      return { storageKey: blob.pathname, data: null };
     }
 
-    return key;
+    // Default: keep the bytes in the database.
+    return { storageKey: key, data: buffer };
   },
 
-  async get(key: string): Promise<Buffer> {
+  async get(key: string, dbData: Buffer | Uint8Array | null): Promise<Buffer> {
+    if (dbData) return Buffer.from(dbData);
+
     if (USE_BLOB) {
       const { head } = await import("@vercel/blob");
       const blob = await head(key);
       const res = await fetch(blob.url);
       return Buffer.from(await res.arrayBuffer());
     }
-    const filePath = path.resolve(STORAGE_BASE, key);
-    if (!filePath.startsWith(path.resolve(STORAGE_BASE))) throw new Error("Invalid key");
-    return fs.readFile(filePath);
+
+    throw new Error("Arquivo não encontrado");
   },
 
-  async delete(key: string): Promise<void> {
+  async delete(key: string, dbData: Buffer | Uint8Array | null): Promise<void> {
+    if (dbData) return; // stored in DB — removed together with the row
+
     if (USE_BLOB) {
       const { del } = await import("@vercel/blob");
       await del(key);
-      return;
     }
-    const filePath = path.resolve(STORAGE_BASE, key);
-    if (!filePath.startsWith(path.resolve(STORAGE_BASE))) throw new Error("Invalid key");
-    await fs.unlink(filePath);
   },
 };
+
+// Fields safe to send to the client — everything except the raw `data` bytes.
+export const attachmentSelect = {
+  id: true,
+  patientId: true,
+  type: true,
+  fileName: true,
+  storageKey: true,
+  mimeType: true,
+  sizeBytes: true,
+  uploadedAt: true,
+  uploadedByUserId: true,
+} as const;
 
 export const ALLOWED_MIME_TYPES = [
   "image/jpeg",

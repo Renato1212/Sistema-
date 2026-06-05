@@ -12,7 +12,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   const attachment = await prisma.attachment.findUnique({ where: { storageKey: key } });
   if (!attachment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const buffer = await Storage.get(key);
+  let buffer: Buffer;
+  try {
+    buffer = await Storage.get(key, attachment.data);
+  } catch {
+    return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
+  }
 
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {

@@ -100,6 +100,7 @@ model Attachment {
   storageKey       String   @unique
   mimeType         String
   sizeBytes        Int
+  data             Bytes?
   uploadedAt       DateTime @default(now())
   uploadedByUserId String
 
