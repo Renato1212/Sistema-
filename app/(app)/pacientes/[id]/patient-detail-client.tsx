@@ -88,34 +88,39 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   const [uploadForm, setUploadForm] = useState({ type: "FOTO_ANTES", file: null as File | null });
 
   async function refreshPatient() {
-    const res = await fetch(`/api/patients/${patient.id}`);
-    const updated = await res.json();
-    const [prRes, attRes] = await Promise.all([
-      fetch(`/api/patients/${patient.id}/procedures`),
-      fetch(`/api/patients/${patient.id}/attachments`),
-    ]);
-    const procedures = await prRes.json();
-    const attachments = await attRes.json();
-    setPatient({ ...updated, procedures, attachments });
+    try {
+      const [patRes, prRes, attRes] = await Promise.all([
+        fetch(`/api/patients/${patient.id}`),
+        fetch(`/api/patients/${patient.id}/procedures`),
+        fetch(`/api/patients/${patient.id}/attachments`),
+      ]);
+      if (!patRes.ok || !prRes.ok || !attRes.ok) { toast("Erro ao atualizar dados.", "error"); return; }
+      const [updated, procedures, attachments] = await Promise.all([patRes.json(), prRes.json(), attRes.json()]);
+      setPatient({ ...updated, procedures, attachments });
+    } catch {
+      toast("Erro ao atualizar dados.", "error");
+    }
   }
 
   async function handleArchive() {
     if (!confirm(`Arquivar ${patient.fullName}?`)) return;
-    await fetch(`/api/patients/${patient.id}`, {
+    const res = await fetch(`/api/patients/${patient.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deletedAt: new Date().toISOString() }),
     });
+    if (!res.ok) { toast("Erro ao arquivar paciente.", "error"); return; }
     toast("Paciente arquivado.", "info");
     router.push("/pacientes");
   }
 
   async function handleRestore() {
-    await fetch(`/api/patients/${patient.id}`, {
+    const res = await fetch(`/api/patients/${patient.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deletedAt: null }),
     });
+    if (!res.ok) { toast("Erro ao restaurar paciente.", "error"); return; }
     toast("Paciente restaurado.", "success");
     await refreshPatient();
   }
@@ -143,7 +148,8 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
   async function handleDeleteProcedure(procedureId: string) {
     if (!confirm("Remover este procedimento?")) return;
-    await fetch(`/api/patients/${patient.id}/procedures?procedureId=${procedureId}`, { method: "DELETE" });
+    const res = await fetch(`/api/patients/${patient.id}/procedures?procedureId=${procedureId}`, { method: "DELETE" });
+    if (!res.ok) { toast("Erro ao remover procedimento.", "error"); return; }
     toast("Procedimento removido.", "info");
     await refreshPatient();
   }
@@ -166,7 +172,8 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
   async function handleDeleteAttachment(attachmentId: string) {
     if (!confirm("Remover este arquivo?")) return;
-    await fetch(`/api/patients/${patient.id}/attachments?attachmentId=${attachmentId}`, { method: "DELETE" });
+    const res = await fetch(`/api/patients/${patient.id}/attachments?attachmentId=${attachmentId}`, { method: "DELETE" });
+    if (!res.ok) { toast("Erro ao remover arquivo.", "error"); return; }
     toast("Arquivo removido.", "info");
     await refreshPatient();
   }
@@ -179,17 +186,17 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   const docs = patient.attachments.filter((a) => a.type !== "FOTO_ANTES" && a.type !== "FOTO_DEPOIS");
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-8 max-w-5xl">
       {/* Back + actions */}
-      <div className="flex items-center justify-between mb-7">
-        <Link href="/pacientes" className="flex items-center gap-1.5 text-sm text-cacau/40 hover:text-cacau transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-7">
+        <Link href="/pacientes" className="flex items-center gap-1.5 text-sm text-cacau/40 hover:text-cacau transition-colors w-fit">
           <ChevronLeft size={16} />
           Pacientes
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <a
             href={`/api/patients/${patient.id}/export`}
-            className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-black/10 rounded-full px-3.5 py-1.5 transition-all hover:border-black/15 hover:bg-white"
+            className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-black/10 rounded-full px-3.5 py-1.5 transition-all hover:border-black/15 hover:bg-white touch-manipulation"
           >
             <Download size={12} />
             Exportar
@@ -212,13 +219,13 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
         </div>
       </div>
 
-      {/* Header */}
-      <div className="isolinhas bg-cacau text-white rounded-xl p-8 mb-8">
-        <h1 className="font-bodoni text-display-md text-white">{patient.fullName}</h1>
+      {/* Header card */}
+      <div className="isolinhas bg-cacau text-white rounded-xl p-5 sm:p-8 mb-6 sm:mb-8">
+        <h1 className="font-bodoni text-2xl sm:text-display-md text-white">{patient.fullName}</h1>
         {patient.deletedAt && (
           <span className="text-xs text-red-300/80 mt-1 block">Arquivado em {formatDate(patient.deletedAt)}</span>
         )}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-7 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-5 sm:mt-7 text-sm">
           {patient.birthDate && (
             <div>
               <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Nascimento</p>
@@ -227,9 +234,9 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
             </div>
           )}
           {patient.email && (
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">E-mail</p>
-              <p>{patient.email}</p>
+              <p className="break-all text-sm">{patient.email}</p>
             </div>
           )}
           {patient.phone && (
@@ -250,14 +257,14 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
       {/* Notes */}
       {patient.notes && (
-        <div className="cp-card bg-areia/10 p-5 mb-8">
+        <div className="cp-card bg-areia/10 p-4 sm:p-5 mb-6 sm:mb-8">
           <p className="cp-label mb-2">Comentários</p>
           <p className="text-sm text-cacau whitespace-pre-wrap">{patient.notes}</p>
         </div>
       )}
 
       {/* Procedures */}
-      <section className="mb-8">
+      <section className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bodoni text-xl text-cacau">Procedimentos</h2>
           <Button size="sm" onClick={() => setShowAddProcedure(true)}>
@@ -270,39 +277,41 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
         ) : (
           <>
             <div className="cp-card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-areia/10 border-b border-black/5">
-                  <tr>
-                    <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Procedimento</th>
-                    <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Data</th>
-                    <th className="text-right px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Valor</th>
-                    <th className="px-5 py-3.5"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/[0.04]">
-                  {patient.procedures.map((proc) => (
-                    <tr key={proc.id} className="hover:bg-areia/8 transition-colors">
-                      <td className="px-5 py-4">
-                        {proc.procedureType?.name ?? proc.customName ?? "—"}
-                        {proc.notes && <p className="text-xs text-cacau/35 mt-0.5">{proc.notes}</p>}
-                      </td>
-                      <td className="px-5 py-4 text-cacau/50">{formatDate(proc.date)}</td>
-                      <td className="px-5 py-4 text-right font-medium">
-                        {formatCurrency(proc.amountCents)}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          onClick={() => handleDeleteProcedure(proc.id)}
-                          className="p-1.5 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          title="Remover"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[380px]">
+                  <thead className="bg-areia/10 border-b border-black/5">
+                    <tr>
+                      <th className="text-left px-4 sm:px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Procedimento</th>
+                      <th className="text-left px-4 sm:px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Data</th>
+                      <th className="text-right px-4 sm:px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Valor</th>
+                      <th className="px-4 sm:px-5 py-3.5 w-10"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-black/[0.04]">
+                    {patient.procedures.map((proc) => (
+                      <tr key={proc.id} className="hover:bg-areia/[0.08] transition-colors">
+                        <td className="px-4 sm:px-5 py-3.5">
+                          {proc.procedureType?.name ?? proc.customName ?? "—"}
+                          {proc.notes && <p className="text-xs text-cacau/35 mt-0.5">{proc.notes}</p>}
+                        </td>
+                        <td className="px-4 sm:px-5 py-3.5 text-cacau/50 whitespace-nowrap">{formatDate(proc.date)}</td>
+                        <td className="px-4 sm:px-5 py-3.5 text-right font-medium whitespace-nowrap">
+                          {formatCurrency(proc.amountCents)}
+                        </td>
+                        <td className="px-4 sm:px-5 py-3.5 text-right">
+                          <button
+                            onClick={() => handleDeleteProcedure(proc.id)}
+                            className="p-2 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all touch-manipulation"
+                            title="Remover"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
             {totalEur > 0 && (
               <div className="flex justify-end mt-3">
@@ -317,7 +326,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       </section>
 
       {/* Photos */}
-      <section className="mb-8">
+      <section className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bodoni text-xl text-cacau">Fotos</h2>
           <Button size="sm" variant="secondary" onClick={() => setShowUpload(true)}>
@@ -332,7 +341,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
         {photos.length === 0 ? (
           <p className="text-sm text-cacau/35 italic">Nenhuma foto enviada.</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {photos.map((att) => (
               <div key={att.id} className="relative group border border-black/5 rounded-xl overflow-hidden aspect-square bg-areia/15 shadow-card">
                 {att.mimeType.startsWith("image/") ? (
@@ -346,9 +355,9 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                     <FileText size={32} className="text-cacau/25" />
                   </div>
                 )}
-                <div className="absolute bottom-0 inset-x-0 bg-cacau/75 text-white text-xs p-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity rounded-b-xl">
+                <div className="absolute bottom-0 inset-x-0 bg-cacau/80 text-white text-xs p-2 flex items-center justify-between opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity rounded-b-xl">
                   <span className="truncate">{pt.attachment.type[att.type as keyof typeof pt.attachment.type] ?? att.type}</span>
-                  <button onClick={() => handleDeleteAttachment(att.id)} className="shrink-0 ml-1">
+                  <button onClick={() => handleDeleteAttachment(att.id)} className="shrink-0 ml-1 p-1 touch-manipulation">
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -359,33 +368,33 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       </section>
 
       {/* Documents */}
-      <section className="mb-8">
+      <section className="mb-6 sm:mb-8">
         <h2 className="font-bodoni text-xl text-cacau mb-4">Documentos</h2>
         {docs.length === 0 ? (
           <p className="text-sm text-cacau/35 italic">Nenhum documento enviado.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {docs.map((att) => (
-              <div key={att.id} className="flex items-center justify-between cp-card px-5 py-3.5">
-                <div className="flex items-center gap-3.5">
-                  <FileText size={16} className="text-champanhe" />
-                  <div>
-                    <p className="text-sm font-medium">{att.fileName}</p>
+              <div key={att.id} className="flex items-center justify-between cp-card px-4 sm:px-5 py-3.5 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <FileText size={16} className="text-champanhe shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{att.fileName}</p>
                     <p className="text-xs text-cacau/40 mt-0.5">
                       {pt.attachment.type[att.type as keyof typeof pt.attachment.type] ?? att.type} · {formatDate(att.uploadedAt)}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <a
                     href={`/api/files/${att.storageKey}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-champanhe hover:underline"
+                    className="text-xs text-champanhe hover:underline px-2 py-1 touch-manipulation"
                   >
                     Baixar
                   </a>
-                  <button onClick={() => handleDeleteAttachment(att.id)} className="p-1.5 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                  <button onClick={() => handleDeleteAttachment(att.id)} className="p-2 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all touch-manipulation">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -469,6 +478,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
               onChange={(e) => setProcForm((f) => ({ ...f, amountCents: e.target.value }))}
               className="cp-field"
               placeholder="0,00"
+              inputMode="decimal"
             />
           </div>
           <div>
