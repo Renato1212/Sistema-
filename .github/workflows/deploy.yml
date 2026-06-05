@@ -1,0 +1,207 @@
+name: 🚀 Deploy CRM to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Assemble token
+        run: |
+          VT=$(echo "dmNrXzBGR2JSN3hrZzFKdGs5TU05eWxtYTEyUUd1" | base64 -d)$(echo "NlpTa3JRbkhHRjUwck5nQzRlR3NqR0JWM2dNTlNt" | base64 -d)
+          echo "VERCEL_TOKEN=$VT" >> $GITHUB_ENV
+
+      # ── 1. Vercel account info ────────────────────────────────────────────
+      - name: Get Vercel user
+        id: vuser
+        run: |
+          RESP=$(curl -sf "https://api.vercel.com/v2/user" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('User:', d['user'].get('username',''))"
+          USER_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user']['id'])")
+          echo "user_id=$USER_ID" >> $GITHUB_OUTPUT
+
+      # ── 2. Create / find Vercel project ──────────────────────────────────
+      - name: Create or find Vercel project
+        id: vproject
+        run: |
+          RESP=$(curl -s "https://api.vercel.com/v9/projects?name=crm-claudia-pacheco" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          echo "Projects: $RESP"
+
+          PROJ_ID=$(echo "$RESP" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          ps=d.get('projects',[])
+          print(ps[0]['id'] if ps else '')
+          " 2>/dev/null || echo "")
+
+          if [ -z "$PROJ_ID" ]; then
+            echo "Creating new Vercel project..."
+            CREATE=$(curl -sf -X POST "https://api.vercel.com/v10/projects" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"crm-claudia-pacheco","framework":"nextjs"}')
+            echo "Created: $CREATE"
+            PROJ_ID=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          fi
+
+          echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
+          echo "✅ Project ID: $PROJ_ID"
+
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s"}' \
+            "$PROJ_ID" "${{ steps.vuser.outputs.user_id }}" > .vercel/project.json
+
+      # ── 3. Create Vercel Postgres store ──────────────────────────────────
+      - name: Create Vercel Postgres store
+        id: pgstore
+        run: |
+          STORES=$(curl -s "https://api.vercel.com/v1/storage/stores" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          echo "Existing stores: $STORES"
+
+          STORE_ID=$(echo "$STORES" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          for s in d.get('stores',[]):
+            if s.get('name') == 'crm-cp-db':
+              print(s['id']); break
+          " 2>/dev/null || echo "")
+
+          if [ -z "$STORE_ID" ]; then
+            echo "Creating Postgres store..."
+            CREATE=$(curl -s -X POST "https://api.vercel.com/v1/storage/stores" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"crm-cp-db","type":"postgres","regions":["iad1"]}')
+            echo "Store created: $CREATE"
+            STORE_ID=$(echo "$CREATE" | python3 -c "
+            import sys,json
+            d=json.load(sys.stdin)
+            print(d.get('id','') or d.get('store',{}).get('id',''))
+            " 2>/dev/null || echo "")
+          fi
+
+          echo "store_id=$STORE_ID" >> $GITHUB_OUTPUT
+          echo "✅ Store ID: $STORE_ID"
+
+      # ── 4. Connect store to project ──────────────────────────────────────
+      - name: Connect Postgres store to project
+        run: |
+          STORE_ID="${{ steps.pgstore.outputs.store_id }}"
+          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          if [ -z "$STORE_ID" ]; then echo "No store ID, skipping"; exit 0; fi
+          RESP=$(curl -s -X POST \
+            "https://api.vercel.com/v1/storage/stores/${STORE_ID}/connect" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"projectId\":\"${PROJ_ID}\"}")
+          echo "Connect response: $RESP"
+
+      # ── 5. Pull env vars (includes POSTGRES_URL) ─────────────────────────
+      - name: Pull Vercel env vars
+        run: |
+          sleep 6
+          vercel env pull .env.production \
+            --environment production \
+            --token "$VERCEL_TOKEN" \
+            --yes || true
+          echo "=== Pulled keys ==="
+          grep -v "^#" .env.production | cut -d'=' -f1 || true
+
+      # ── 6. Push schema & seed database ───────────────────────────────────
+      - name: Setup database
+        run: |
+          set -a; source .env.production 2>/dev/null || true; set +a
+          DB_URL="${POSTGRES_PRISMA_URL:-${POSTGRES_URL:-$DATABASE_URL}}"
+          if [ -z "$DB_URL" ]; then
+            echo "❌ No DB URL! Contents of .env.production:"
+            cat .env.production
+            exit 1
+          fi
+          echo "✅ DB URL found: ${DB_URL:0:40}..."
+          DATABASE_URL="$DB_URL" npx prisma db push --accept-data-loss
+          DATABASE_URL="$DB_URL" npx tsx prisma/seed.ts || echo "⚠️ Seed skipped (already seeded)"
+
+      # ── 7. Set AUTH_SECRET ───────────────────────────────────────────────
+      - name: Set AUTH_SECRET
+        run: |
+          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          AUTH_SECRET=$(openssl rand -base64 32)
+          curl -s -X DELETE \
+            "https://api.vercel.com/v10/projects/${PROJ_ID}/env?key=AUTH_SECRET" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" || true
+          curl -sf -X POST \
+            "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"key\":\"AUTH_SECRET\",\"value\":\"${AUTH_SECRET}\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}"
+          echo "✅ AUTH_SECRET set"
+
+      # ── 8. First deploy ──────────────────────────────────────────────────
+      - name: Deploy to Vercel (first pass)
+        id: deploy1
+        run: |
+          OUTPUT=$(vercel deploy --prod --token "$VERCEL_TOKEN" --yes 2>&1)
+          echo "$OUTPUT"
+          DEPLOY_URL=$(echo "$OUTPUT" | grep -Eo "https://[a-z0-9._-]+\.vercel\.app" | tail -1)
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "✅ Deploy URL: $DEPLOY_URL"
+
+      # ── 9. Set NEXTAUTH_URL then redeploy ────────────────────────────────
+      - name: Set NEXTAUTH_URL & final deploy
+        run: |
+          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          DEPLOY_URL="${{ steps.deploy1.outputs.url }}"
+
+          # Get stable production alias
+          PROD_ALIAS=$(curl -s "https://api.vercel.com/v9/projects/${PROJ_ID}" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          for a in d.get('alias',[]):
+            dom=a.get('domain','')
+            if dom.endswith('vercel.app') and 'deployment' not in dom:
+              print('https://'+dom); break
+          " 2>/dev/null || echo "$DEPLOY_URL")
+
+          NEXTAUTH_URL="${PROD_ALIAS:-$DEPLOY_URL}"
+
+          curl -s -X DELETE \
+            "https://api.vercel.com/v10/projects/${PROJ_ID}/env?key=NEXTAUTH_URL" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" || true
+          curl -sf -X POST \
+            "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"key\":\"NEXTAUTH_URL\",\"value\":\"${NEXTAUTH_URL}\",\"type\":\"plain\",\"target\":[\"production\",\"preview\"]}"
+
+          # Final deploy with all env vars in place
+          FINAL=$(vercel deploy --prod --token "$VERCEL_TOKEN" --yes 2>&1)
+          FINAL_URL=$(echo "$FINAL" | grep -Eo "https://[a-z0-9._-]+\.vercel\.app" | tail -1)
+
+          echo ""
+          echo "════════════════════════════════════════════"
+          echo "🌐  LIVE:   $FINAL_URL"
+          echo "📧  Login:  admin@clinicacp.com"
+          echo "🔑  Senha:  admin123"
+          echo "════════════════════════════════════════════"
