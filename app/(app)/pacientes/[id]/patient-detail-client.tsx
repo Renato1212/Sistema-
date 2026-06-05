@@ -77,12 +77,11 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   const [showAddProcedure, setShowAddProcedure] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
-  // Procedure form state
   const [procForm, setProcForm] = useState({
     procedureTypeId: "",
     customName: "",
     amountCents: "",
-    currency: "BRL",
+    currency: "EUR",
     date: new Date().toISOString().slice(0, 10),
     notes: "",
   });
@@ -91,7 +90,6 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   async function refreshPatient() {
     const res = await fetch(`/api/patients/${patient.id}`);
     const updated = await res.json();
-    // also fetch procedures and attachments separately
     const [prRes, attRes] = await Promise.all([
       fetch(`/api/patients/${patient.id}/procedures`),
       fetch(`/api/patients/${patient.id}/attachments`),
@@ -132,7 +130,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
         procedureTypeId: procForm.procedureTypeId || undefined,
         customName: procForm.customName || undefined,
         amountCents: Math.round(amount * 100),
-        currency: procForm.currency,
+        currency: "EUR",
         date: procForm.date,
         notes: procForm.notes || undefined,
       }),
@@ -173,11 +171,9 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
     await refreshPatient();
   }
 
-  // Subtotals per currency
-  const subtotals: Record<string, number> = {};
-  for (const p of patient.procedures) {
-    subtotals[p.currency] = (subtotals[p.currency] ?? 0) + p.amountCents;
-  }
+  const totalEur = patient.procedures
+    .filter((p) => !p.currency || p.currency === "EUR")
+    .reduce((s, p) => s + p.amountCents, 0);
 
   const photos = patient.attachments.filter((a) => a.type === "FOTO_ANTES" || a.type === "FOTO_DEPOIS");
   const docs = patient.attachments.filter((a) => a.type !== "FOTO_ANTES" && a.type !== "FOTO_DEPOIS");
@@ -185,18 +181,18 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   return (
     <div className="p-8 max-w-5xl">
       {/* Back + actions */}
-      <div className="flex items-center justify-between mb-6">
-        <Link href="/pacientes" className="flex items-center gap-1.5 text-sm text-cacau/50 hover:text-cacau transition-colors">
+      <div className="flex items-center justify-between mb-7">
+        <Link href="/pacientes" className="flex items-center gap-1.5 text-sm text-cacau/40 hover:text-cacau transition-colors">
           <ChevronLeft size={16} />
           Pacientes
         </Link>
         <div className="flex items-center gap-2">
           <a
             href={`/api/patients/${patient.id}/export`}
-            className="flex items-center gap-1.5 text-xs text-cacau/50 hover:text-cacau border border-areia rounded-sm px-3 py-2 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-black/10 rounded-full px-3.5 py-1.5 transition-all hover:border-black/15 hover:bg-white"
           >
-            <Download size={13} />
-            Exportar dados
+            <Download size={12} />
+            Exportar
           </a>
           <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)}>
             <Edit2 size={13} />
@@ -217,36 +213,36 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       </div>
 
       {/* Header */}
-      <div className="isolinhas bg-cacau text-white rounded-sm p-8 mb-8">
+      <div className="isolinhas bg-cacau text-white rounded-xl p-8 mb-8">
         <h1 className="font-bodoni text-display-md text-white">{patient.fullName}</h1>
         {patient.deletedAt && (
-          <span className="text-xs text-red-300 mt-1 block">Arquivado em {formatDate(patient.deletedAt)}</span>
+          <span className="text-xs text-red-300/80 mt-1 block">Arquivado em {formatDate(patient.deletedAt)}</span>
         )}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-7 text-sm">
           {patient.birthDate && (
             <div>
-              <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Nascimento</p>
+              <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Nascimento</p>
               <p>{formatDate(patient.birthDate)}</p>
-              <p className="text-white/60 text-xs">{calculateAge(patient.birthDate)} anos</p>
+              <p className="text-white/50 text-xs mt-0.5">{calculateAge(patient.birthDate)} anos</p>
             </div>
           )}
           {patient.email && (
             <div>
-              <p className="text-white/40 text-xs uppercase tracking-wide mb-1">E-mail</p>
+              <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">E-mail</p>
               <p>{patient.email}</p>
             </div>
           )}
           {patient.phone && (
             <div>
-              <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Telefone</p>
+              <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Telefone</p>
               <p>{patient.phone}</p>
             </div>
           )}
           <div>
-            <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Marketing</p>
+            <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Marketing</p>
             <p>{patient.marketingConsent ? "✓ Consentiu" : "Não consentiu"}</p>
             {patient.marketingConsentDate && (
-              <p className="text-white/60 text-xs">{formatDate(patient.marketingConsentDate)}</p>
+              <p className="text-white/40 text-xs mt-0.5">{formatDate(patient.marketingConsentDate)}</p>
             )}
           </div>
         </div>
@@ -254,8 +250,8 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
       {/* Notes */}
       {patient.notes && (
-        <div className="bg-areia/20 border border-areia rounded-sm p-4 mb-8">
-          <p className="text-xs uppercase tracking-wide text-cacau/50 mb-2">Comentários</p>
+        <div className="cp-card bg-areia/10 p-5 mb-8">
+          <p className="cp-label mb-2">Comentários</p>
           <p className="text-sm text-cacau whitespace-pre-wrap">{patient.notes}</p>
         </div>
       )}
@@ -270,37 +266,37 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
           </Button>
         </div>
         {patient.procedures.length === 0 ? (
-          <p className="text-sm text-cacau/40 italic">Nenhum procedimento registrado.</p>
+          <p className="text-sm text-cacau/35 italic">Nenhum procedimento registrado.</p>
         ) : (
           <>
-            <div className="bg-white border border-areia rounded-sm overflow-hidden">
+            <div className="cp-card overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-areia/20 border-b border-areia">
+                <thead className="bg-areia/10 border-b border-black/5">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Procedimento</th>
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Data</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Valor</th>
-                    <th className="px-4 py-3"></th>
+                    <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Procedimento</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Data</th>
+                    <th className="text-right px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Valor</th>
+                    <th className="px-5 py-3.5"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-areia/40">
+                <tbody className="divide-y divide-black/[0.04]">
                   {patient.procedures.map((proc) => (
-                    <tr key={proc.id} className="hover:bg-areia/10">
-                      <td className="px-4 py-3">
+                    <tr key={proc.id} className="hover:bg-areia/8 transition-colors">
+                      <td className="px-5 py-4">
                         {proc.procedureType?.name ?? proc.customName ?? "—"}
-                        {proc.notes && <p className="text-xs text-cacau/40">{proc.notes}</p>}
+                        {proc.notes && <p className="text-xs text-cacau/35 mt-0.5">{proc.notes}</p>}
                       </td>
-                      <td className="px-4 py-3 text-cacau/60">{formatDate(proc.date)}</td>
-                      <td className="px-4 py-3 text-right font-medium">
-                        {formatCurrency(proc.amountCents, proc.currency as "BRL" | "EUR")}
+                      <td className="px-5 py-4 text-cacau/50">{formatDate(proc.date)}</td>
+                      <td className="px-5 py-4 text-right font-medium">
+                        {formatCurrency(proc.amountCents)}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-5 py-4 text-right">
                         <button
                           onClick={() => handleDeleteProcedure(proc.id)}
-                          className="text-cacau/30 hover:text-red-500 transition-colors"
+                          className="p-1.5 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                           title="Remover"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </td>
                     </tr>
@@ -308,14 +304,14 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                 </tbody>
               </table>
             </div>
-            <div className="flex gap-6 mt-3 justify-end text-sm">
-              {Object.entries(subtotals).map(([currency, total]) => (
-                <div key={currency} className="text-right">
-                  <span className="text-xs uppercase text-cacau/40 mr-2">Subtotal {currency}</span>
-                  <span className="font-medium">{formatCurrency(total, currency as "BRL" | "EUR")}</span>
+            {totalEur > 0 && (
+              <div className="flex justify-end mt-3">
+                <div className="text-right">
+                  <span className="text-[11px] uppercase tracking-wider text-cacau/35 mr-2">Total</span>
+                  <span className="font-medium text-sm">{formatCurrency(totalEur)}</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </>
         )}
       </section>
@@ -329,16 +325,16 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
             Enviar
           </Button>
         </div>
-        <p className="text-xs text-cacau/40 mb-3 flex items-center gap-1.5">
+        <p className="text-xs text-cacau/35 mb-4 flex items-center gap-1.5">
           <Image size={11} />
           As fotos clínicas requerem consentimento documentado do paciente.
         </p>
         {photos.length === 0 ? (
-          <p className="text-sm text-cacau/40 italic">Nenhuma foto enviada.</p>
+          <p className="text-sm text-cacau/35 italic">Nenhuma foto enviada.</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {photos.map((att) => (
-              <div key={att.id} className="relative group border border-areia rounded-sm overflow-hidden aspect-square bg-areia/20">
+              <div key={att.id} className="relative group border border-black/5 rounded-xl overflow-hidden aspect-square bg-areia/15 shadow-card">
                 {att.mimeType.startsWith("image/") ? (
                   <img
                     src={`/api/files/${att.storageKey}`}
@@ -347,10 +343,10 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <FileText size={32} className="text-cacau/30" />
+                    <FileText size={32} className="text-cacau/25" />
                   </div>
                 )}
-                <div className="absolute bottom-0 inset-x-0 bg-cacau/70 text-white text-xs p-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-0 inset-x-0 bg-cacau/75 text-white text-xs p-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity rounded-b-xl">
                   <span className="truncate">{pt.attachment.type[att.type as keyof typeof pt.attachment.type] ?? att.type}</span>
                   <button onClick={() => handleDeleteAttachment(att.id)} className="shrink-0 ml-1">
                     <Trash2 size={12} />
@@ -366,16 +362,16 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       <section className="mb-8">
         <h2 className="font-bodoni text-xl text-cacau mb-4">Documentos</h2>
         {docs.length === 0 ? (
-          <p className="text-sm text-cacau/40 italic">Nenhum documento enviado.</p>
+          <p className="text-sm text-cacau/35 italic">Nenhum documento enviado.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {docs.map((att) => (
-              <div key={att.id} className="flex items-center justify-between bg-white border border-areia rounded-sm px-4 py-3">
-                <div className="flex items-center gap-3">
+              <div key={att.id} className="flex items-center justify-between cp-card px-5 py-3.5">
+                <div className="flex items-center gap-3.5">
                   <FileText size={16} className="text-champanhe" />
                   <div>
                     <p className="text-sm font-medium">{att.fileName}</p>
-                    <p className="text-xs text-cacau/40">
+                    <p className="text-xs text-cacau/40 mt-0.5">
                       {pt.attachment.type[att.type as keyof typeof pt.attachment.type] ?? att.type} · {formatDate(att.uploadedAt)}
                     </p>
                   </div>
@@ -389,15 +385,15 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                   >
                     Baixar
                   </a>
-                  <button onClick={() => handleDeleteAttachment(att.id)} className="text-cacau/30 hover:text-red-500">
-                    <Trash2 size={14} />
+                  <button onClick={() => handleDeleteAttachment(att.id)} className="p-1.5 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-        <div className="mt-3">
+        <div className="mt-4">
           <Button size="sm" variant="secondary" onClick={() => setShowUpload(true)}>
             <Upload size={14} />
             Enviar documento
@@ -433,7 +429,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       <Modal open={showAddProcedure} onClose={() => setShowAddProcedure(false)} title="Adicionar Procedimento">
         <div className="flex flex-col gap-4">
           <div>
-            <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Procedimento do catálogo</label>
+            <label className="cp-label">Procedimento do catálogo</label>
             <select
               value={procForm.procedureTypeId}
               onChange={(e) => {
@@ -442,10 +438,9 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                   ...f,
                   procedureTypeId: e.target.value,
                   amountCents: pt_found?.defaultPriceCents ? String(pt_found.defaultPriceCents / 100) : f.amountCents,
-                  currency: pt_found?.defaultCurrency ?? f.currency,
                 }));
               }}
-              className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
+              className="cp-field"
             >
               <option value="">— Selecionar —</option>
               {procedureTypes.map((pt) => (
@@ -455,59 +450,46 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
           </div>
           {!procForm.procedureTypeId && (
             <div>
-              <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Nome personalizado</label>
+              <label className="cp-label">Nome personalizado</label>
               <input
                 value={procForm.customName}
                 onChange={(e) => setProcForm((f) => ({ ...f, customName: e.target.value }))}
-                className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
+                className="cp-field"
                 placeholder="Ex: Consulta de retorno"
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Valor</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={procForm.amountCents}
-                onChange={(e) => setProcForm((f) => ({ ...f, amountCents: e.target.value }))}
-                className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
-                placeholder="0,00"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Moeda</label>
-              <select
-                value={procForm.currency}
-                onChange={(e) => setProcForm((f) => ({ ...f, currency: e.target.value }))}
-                className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
-              >
-                <option value="BRL">BRL — Real</option>
-                <option value="EUR">EUR — Euro</option>
-              </select>
-            </div>
+          <div>
+            <label className="cp-label">Valor (€)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={procForm.amountCents}
+              onChange={(e) => setProcForm((f) => ({ ...f, amountCents: e.target.value }))}
+              className="cp-field"
+              placeholder="0,00"
+            />
           </div>
           <div>
-            <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Data</label>
+            <label className="cp-label">Data</label>
             <input
               type="date"
               value={procForm.date}
               onChange={(e) => setProcForm((f) => ({ ...f, date: e.target.value }))}
-              className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
+              className="cp-field"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Observações</label>
+            <label className="cp-label">Observações</label>
             <textarea
               value={procForm.notes}
               onChange={(e) => setProcForm((f) => ({ ...f, notes: e.target.value }))}
-              className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
+              className="cp-field"
               rows={2}
             />
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 pt-1">
             <Button variant="secondary" onClick={() => setShowAddProcedure(false)}>Cancelar</Button>
             <Button onClick={handleAddProcedure}>Adicionar</Button>
           </div>
@@ -518,11 +500,11 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       <Modal open={showUpload} onClose={() => setShowUpload(false)} title="Enviar Arquivo">
         <div className="flex flex-col gap-4">
           <div>
-            <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">Tipo</label>
+            <label className="cp-label">Tipo</label>
             <select
               value={uploadForm.type}
               onChange={(e) => setUploadForm((f) => ({ ...f, type: e.target.value }))}
-              className="w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm focus:outline-none focus:border-champanhe"
+              className="cp-field"
             >
               {ATTACHMENT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -530,18 +512,16 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-cacau/70 uppercase tracking-wide block mb-1">
-              Arquivo (JPEG, PNG, WebP, PDF · máx. 10MB)
-            </label>
+            <label className="cp-label">Arquivo (JPEG, PNG, WebP, PDF · máx. 10 MB)</label>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,application/pdf"
               onChange={(e) => setUploadForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))}
-              className="w-full text-sm text-cacau/70 file:mr-3 file:py-2 file:px-3 file:border file:border-areia file:rounded-sm file:text-xs file:bg-areia/20 file:text-cacau hover:file:bg-areia/40"
+              className="w-full text-sm text-cacau/60 file:mr-3 file:py-2 file:px-4 file:border file:border-black/10 file:rounded-full file:text-xs file:bg-white file:text-cacau hover:file:bg-areia/20 transition-all"
             />
           </div>
-          <p className="text-xs text-cacau/40">As fotos clínicas requerem consentimento documentado do paciente.</p>
-          <div className="flex justify-end gap-3">
+          <p className="text-xs text-cacau/35">As fotos clínicas requerem consentimento documentado do paciente.</p>
+          <div className="flex justify-end gap-3 pt-1">
             <Button variant="secondary" onClick={() => setShowUpload(false)}>Cancelar</Button>
             <Button onClick={handleUpload}>Enviar</Button>
           </div>

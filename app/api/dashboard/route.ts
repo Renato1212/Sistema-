@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-  const currency = searchParams.get("currency") ?? "BRL";
+  const currency = searchParams.get("currency") ?? "EUR";
 
   const dateFilter = {
     gte: from ? new Date(from) : subDays(new Date(), 30),

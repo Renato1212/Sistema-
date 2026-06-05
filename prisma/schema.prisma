@@ -42,7 +42,7 @@ model ProcedureType {
   id                String  @id @default(cuid())
   name              String
   defaultPriceCents Int?
-  defaultCurrency   String  @default("BRL")
+  defaultCurrency   String  @default("EUR")
   active            Boolean @default(true)
 
   procedures   PatientProcedure[]
@@ -55,7 +55,7 @@ model PatientProcedure {
   procedureTypeId String?
   customName      String?
   amountCents     Int
-  currency        String   @default("BRL")
+  currency        String   @default("EUR")
   date            DateTime
   notes           String?
   createdAt       DateTime @default(now())
