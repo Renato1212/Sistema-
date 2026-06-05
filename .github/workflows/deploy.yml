@@ -70,12 +70,12 @@ jobs:
           echo "Existing stores: $STORES"
 
           STORE_ID=$(echo "$STORES" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          for s in d.get('stores',[]):
-            if s.get('name') == 'crm-cp-db':
-              print(s['id']); break
-          " 2>/dev/null || echo "")
+import sys,json
+d=json.load(sys.stdin)
+for s in d.get('stores',[]):
+  if s.get('name') == 'crm-cp-db':
+    print(s['id']); break
+" 2>/dev/null || echo "")
 
           if [ -z "$STORE_ID" ]; then
             echo "Creating Postgres store..."
@@ -85,16 +85,16 @@ jobs:
               -d '{"name":"crm-cp-db","type":"postgres","regions":["iad1"]}')
             echo "Store created: $CREATE"
             STORE_ID=$(echo "$CREATE" | python3 -c "
-            import sys,json
-            d=json.load(sys.stdin)
-            print(d.get('id','') or d.get('store',{}).get('id',''))
-            " 2>/dev/null || echo "")
+import sys,json
+d=json.load(sys.stdin)
+print(d.get('id','') or d.get('store',{}).get('id',''))
+" 2>/dev/null || echo "")
           fi
 
           echo "store_id=$STORE_ID" >> $GITHUB_OUTPUT
           echo "✅ Store ID: $STORE_ID"
 
-      # ── 3. Connect store to project ──────────────────────────────────────
+      # ── 3. Connect store to project (all environments) ───────────────────
       - name: Connect Postgres store to project
         run: |
           STORE_ID="${{ steps.pgstore.outputs.store_id }}"
@@ -104,43 +104,54 @@ jobs:
             "https://api.vercel.com/v1/storage/stores/${STORE_ID}/connect" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"projectId\":\"${PROJ_ID}\"}")
+            -d "{\"projectId\":\"${PROJ_ID}\",\"environments\":[\"production\",\"preview\",\"development\"]}")
           echo "Connect response: $RESP"
 
-      # ── 4. Fetch env vars via API (no interactive CLI) ────────────────────
+      # ── 4. Fetch env vars via API ─────────────────────────────────────────
       - name: Pull Vercel env vars
         run: |
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
           rm -f .env.production
 
-          for i in 1 2 3 4 5; do
-            echo "Attempt $i: fetching env vars from Vercel API..."
-            ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env?target=production" \
-              -H "Authorization: Bearer $VERCEL_TOKEN")
-            echo "Env list: $ENV_LIST"
+          # Wait up to ~3 min total for POSTGRES vars to appear across any environment target
+          for i in 1 2 3 4 5 6 7 8 9; do
+            echo "=== Attempt $i: polling for Postgres env vars ==="
+            FOUND=0
 
-            PG_COUNT=$(echo "$ENV_LIST" | python3 -c "
-          import sys,json
-          envs=json.load(sys.stdin).get('envs',[])
-          print(sum(1 for e in envs if e['key'].startswith('POSTGRES')))
-          " 2>/dev/null || echo "0")
+            for TARGET in production preview development ""; do
+              LABEL="${TARGET:-all}"
+              URL="https://api.vercel.com/v10/projects/${PROJ_ID}/env"
+              if [ -n "$TARGET" ]; then URL="${URL}?target=${TARGET}"; fi
 
-            if [ "$PG_COUNT" -gt "0" ]; then
-              echo "✅ Found $PG_COUNT Postgres vars, decrypting..."
-              echo "$ENV_LIST" | python3 -c "
-          import sys,json
-          for e in json.load(sys.stdin).get('envs',[]):
-              print(e['id'] + ' ' + e['key'])
-          " 2>/dev/null | while read ENVID ENVKEY; do
-                VAL=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${ENVID}" \
-                  -H "Authorization: Bearer $VERCEL_TOKEN" | \
-                  python3 -c "import sys,json; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
-                echo "${ENVKEY}=${VAL}" >> .env.production
-              done
-              break
-            fi
+              ENV_LIST=$(curl -s "$URL" -H "Authorization: Bearer $VERCEL_TOKEN")
+              PG_COUNT=$(echo "$ENV_LIST" | python3 -c "
+import sys,json
+envs=json.load(sys.stdin).get('envs',[])
+print(sum(1 for e in envs if e['key'].startswith('POSTGRES')))
+" 2>/dev/null || echo "0")
 
-            echo "⏳ Postgres env vars not ready yet (attempt $i/5), waiting 20s..."
+              echo "  target=$LABEL → $PG_COUNT POSTGRES vars"
+
+              if [ "$PG_COUNT" -gt "0" ]; then
+                echo "✅ Found $PG_COUNT Postgres vars for target=$LABEL, decrypting..."
+                echo "$ENV_LIST" | python3 -c "
+import sys,json
+for e in json.load(sys.stdin).get('envs',[]):
+    print(e['id'] + ' ' + e['key'])
+" 2>/dev/null | while read ENVID ENVKEY; do
+                  VAL=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${ENVID}" \
+                    -H "Authorization: Bearer $VERCEL_TOKEN" | \
+                    python3 -c "import sys,json; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
+                  echo "${ENVKEY}=${VAL}" >> .env.production
+                done
+                FOUND=1
+                break
+              fi
+            done
+
+            if [ "$FOUND" -eq "1" ]; then break; fi
+
+            echo "⏳ No Postgres vars yet (attempt $i/9), waiting 20s..."
             sleep 20
           done
 
@@ -194,13 +205,13 @@ jobs:
 
           PROD_ALIAS=$(curl -s "https://api.vercel.com/v9/projects/${PROJ_ID}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          for a in d.get('alias',[]):
-            dom=a.get('domain','')
-            if dom.endswith('vercel.app') and 'deployment' not in dom:
-              print('https://'+dom); break
-          " 2>/dev/null || echo "$DEPLOY_URL")
+import sys,json
+d=json.load(sys.stdin)
+for a in d.get('alias',[]):
+  dom=a.get('domain','')
+  if dom.endswith('vercel.app') and 'deployment' not in dom:
+    print('https://'+dom); break
+" 2>/dev/null || echo "$DEPLOY_URL")
 
           NEXTAUTH_URL="${PROD_ALIAS:-$DEPLOY_URL}"
 
