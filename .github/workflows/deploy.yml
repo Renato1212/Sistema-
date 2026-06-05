@@ -70,12 +70,12 @@ jobs:
           echo "Existing stores: $STORES"
 
           STORE_ID=$(echo "$STORES" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-for s in d.get('stores',[]):
-  if s.get('name') == 'crm-cp-db':
-    print(s['id']); break
-" 2>/dev/null || echo "")
+          import sys,json
+          d=json.load(sys.stdin)
+          for s in d.get('stores',[]):
+            if s.get('name') == 'crm-cp-db':
+              print(s['id']); break
+          " 2>/dev/null || echo "")
 
           if [ -z "$STORE_ID" ]; then
             echo "Creating Postgres store..."
@@ -85,16 +85,16 @@ for s in d.get('stores',[]):
               -d '{"name":"crm-cp-db","type":"postgres","regions":["iad1"]}')
             echo "Store created: $CREATE"
             STORE_ID=$(echo "$CREATE" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-print(d.get('id','') or d.get('store',{}).get('id',''))
-" 2>/dev/null || echo "")
+            import sys,json
+            d=json.load(sys.stdin)
+            print(d.get('id','') or d.get('store',{}).get('id',''))
+            " 2>/dev/null || echo "")
           fi
 
           echo "store_id=$STORE_ID" >> $GITHUB_OUTPUT
           echo "✅ Store ID: $STORE_ID"
 
-      # ── 3. Connect store to project (all environments) ───────────────────
+      # ── 3. Connect store to project (production + preview + development) ──
       - name: Connect Postgres store to project
         run: |
           STORE_ID="${{ steps.pgstore.outputs.store_id }}"
@@ -107,38 +107,41 @@ print(d.get('id','') or d.get('store',{}).get('id',''))
             -d "{\"projectId\":\"${PROJ_ID}\",\"environments\":[\"production\",\"preview\",\"development\"]}")
           echo "Connect response: $RESP"
 
-      # ── 4. Fetch env vars via API ─────────────────────────────────────────
+      # ── 4. Fetch env vars via API (try all targets) ───────────────────────
       - name: Pull Vercel env vars
         run: |
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
           rm -f .env.production
 
-          # Wait up to ~3 min total for POSTGRES vars to appear across any environment target
           for i in 1 2 3 4 5 6 7 8 9; do
             echo "=== Attempt $i: polling for Postgres env vars ==="
             FOUND=0
 
             for TARGET in production preview development ""; do
               LABEL="${TARGET:-all}"
-              URL="https://api.vercel.com/v10/projects/${PROJ_ID}/env"
-              if [ -n "$TARGET" ]; then URL="${URL}?target=${TARGET}"; fi
+              if [ -n "$TARGET" ]; then
+                ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env?target=${TARGET}" \
+                  -H "Authorization: Bearer $VERCEL_TOKEN")
+              else
+                ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
+                  -H "Authorization: Bearer $VERCEL_TOKEN")
+              fi
 
-              ENV_LIST=$(curl -s "$URL" -H "Authorization: Bearer $VERCEL_TOKEN")
               PG_COUNT=$(echo "$ENV_LIST" | python3 -c "
-import sys,json
-envs=json.load(sys.stdin).get('envs',[])
-print(sum(1 for e in envs if e['key'].startswith('POSTGRES')))
-" 2>/dev/null || echo "0")
+              import sys,json
+              envs=json.load(sys.stdin).get('envs',[])
+              print(sum(1 for e in envs if e['key'].startswith('POSTGRES')))
+              " 2>/dev/null || echo "0")
 
-              echo "  target=$LABEL → $PG_COUNT POSTGRES vars"
+              echo "  target=$LABEL -> $PG_COUNT POSTGRES vars"
 
               if [ "$PG_COUNT" -gt "0" ]; then
                 echo "✅ Found $PG_COUNT Postgres vars for target=$LABEL, decrypting..."
                 echo "$ENV_LIST" | python3 -c "
-import sys,json
-for e in json.load(sys.stdin).get('envs',[]):
-    print(e['id'] + ' ' + e['key'])
-" 2>/dev/null | while read ENVID ENVKEY; do
+                import sys,json
+                for e in json.load(sys.stdin).get('envs',[]):
+                  print(e['id'] + ' ' + e['key'])
+                " 2>/dev/null | while read ENVID ENVKEY; do
                   VAL=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${ENVID}" \
                     -H "Authorization: Bearer $VERCEL_TOKEN" | \
                     python3 -c "import sys,json; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
@@ -205,13 +208,13 @@ for e in json.load(sys.stdin).get('envs',[]):
 
           PROD_ALIAS=$(curl -s "https://api.vercel.com/v9/projects/${PROJ_ID}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-for a in d.get('alias',[]):
-  dom=a.get('domain','')
-  if dom.endswith('vercel.app') and 'deployment' not in dom:
-    print('https://'+dom); break
-" 2>/dev/null || echo "$DEPLOY_URL")
+          import sys,json
+          d=json.load(sys.stdin)
+          for a in d.get('alias',[]):
+            dom=a.get('domain','')
+            if dom.endswith('vercel.app') and 'deployment' not in dom:
+              print('https://'+dom); break
+          " 2>/dev/null || echo "$DEPLOY_URL")
 
           NEXTAUTH_URL="${PROD_ALIAS:-$DEPLOY_URL}"
 
