@@ -26,18 +26,31 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # ── 1. Create / find Vercel project ──────────────────────────────────
+      # ── 1. Find team + project ────────────────────────────────────────────
       - name: Create or find Vercel project
         id: vproject
         run: |
-          FIND=$(curl -s "https://api.vercel.com/v9/projects/crm-claudia-pacheco" \
+          # Get the team that owns the token's projects
+          TEAM_RESP=$(curl -s "https://api.vercel.com/v2/teams" \
             -H "Authorization: Bearer $VERCEL_TOKEN")
+          TEAM_ID=$(echo "$TEAM_RESP" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          ts=d.get('teams',[])
+          print(ts[0]['id'] if ts else '')
+          " 2>/dev/null || echo "")
+          echo "Team ID: $TEAM_ID"
+
+          FIND_URL="https://api.vercel.com/v9/projects/crm-claudia-pacheco"
+          if [ -n "$TEAM_ID" ]; then FIND_URL="${FIND_URL}?teamId=${TEAM_ID}"; fi
+          FIND=$(curl -s "$FIND_URL" -H "Authorization: Bearer $VERCEL_TOKEN")
           echo "Find response: $FIND"
           PROJ_ID=$(echo "$FIND" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
           if [ -z "$PROJ_ID" ]; then
-            echo "Project not found, creating..."
-            CREATE=$(curl -s -X POST "https://api.vercel.com/v10/projects" \
+            CREATE_URL="https://api.vercel.com/v10/projects"
+            if [ -n "$TEAM_ID" ]; then CREATE_URL="${CREATE_URL}?teamId=${TEAM_ID}"; fi
+            CREATE=$(curl -s -X POST "$CREATE_URL" \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{"name":"crm-claudia-pacheco","framework":"nextjs"}')
@@ -46,129 +59,136 @@ jobs:
           fi
 
           if [ -z "$PROJ_ID" ]; then
-            echo "❌ Could not create or find Vercel project"
+            echo "❌ Could not find or create project"
             exit 1
           fi
 
           echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
-          echo "✅ Project ID: $PROJ_ID"
-
-          USER_RESP=$(curl -s "https://api.vercel.com/v2/user" \
-            -H "Authorization: Bearer $VERCEL_TOKEN")
-          USER_ID=$(echo "$USER_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user']['id'])" 2>/dev/null || echo "")
+          echo "team_id=$TEAM_ID" >> $GITHUB_OUTPUT
+          echo "✅ Project: $PROJ_ID | Team: $TEAM_ID"
 
           mkdir -p .vercel
-          printf '{"projectId":"%s","orgId":"%s"}' "$PROJ_ID" "$USER_ID" > .vercel/project.json
-          echo "✅ .vercel/project.json: $(cat .vercel/project.json)"
+          # Use TEAM ID as orgId (not user id) — critical for vercel env pull
+          printf '{"projectId":"%s","orgId":"%s"}' "$PROJ_ID" "$TEAM_ID" > .vercel/project.json
+          echo "✅ project.json: $(cat .vercel/project.json)"
 
-      # ── 2. Create Vercel Postgres store ──────────────────────────────────
-      - name: Create Vercel Postgres store
+      # ── 2. Find existing Neon/Postgres store ──────────────────────────────
+      - name: Find Postgres store
         id: pgstore
         run: |
-          STORES=$(curl -s "https://api.vercel.com/v1/storage/stores" \
-            -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "Existing stores: $STORES"
+          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
+          LIST_URL="https://api.vercel.com/v1/storage/stores"
+          if [ -n "$TEAM_ID" ]; then LIST_URL="${LIST_URL}?teamId=${TEAM_ID}"; fi
 
+          STORES=$(curl -s "$LIST_URL" -H "Authorization: Bearer $VERCEL_TOKEN")
+          echo "Stores: $STORES"
+
+          # Find any store whose secrets include POSTGRES or DATABASE_URL vars
           STORE_ID=$(echo "$STORES" | python3 -c "
           import sys,json
           d=json.load(sys.stdin)
           for s in d.get('stores',[]):
-            if s.get('name') == 'crm-cp-db':
+            secrets=[x['name'] for x in s.get('secrets',[])]
+            evars=[]
+            for pm in s.get('projectsMetadata',[]):
+              evars.extend(pm.get('environmentVariables',[]))
+            all_keys=secrets+evars
+            if any(k.startswith('POSTGRES') or k=='DATABASE_URL' for k in all_keys):
               print(s['id']); break
           " 2>/dev/null || echo "")
-
-          if [ -z "$STORE_ID" ]; then
-            echo "Creating Postgres store..."
-            CREATE=$(curl -s -X POST "https://api.vercel.com/v1/storage/stores" \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"crm-cp-db","type":"postgres","regions":["iad1"]}')
-            echo "Store created: $CREATE"
-            STORE_ID=$(echo "$CREATE" | python3 -c "
-            import sys,json
-            d=json.load(sys.stdin)
-            print(d.get('id','') or d.get('store',{}).get('id',''))
-            " 2>/dev/null || echo "")
-          fi
 
           echo "store_id=$STORE_ID" >> $GITHUB_OUTPUT
           echo "✅ Store ID: $STORE_ID"
 
-      # ── 3. Connect store to project (production + preview + development) ──
+      # ── 3. Connect store to CRM project ──────────────────────────────────
       - name: Connect Postgres store to project
         run: |
           STORE_ID="${{ steps.pgstore.outputs.store_id }}"
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
-          if [ -z "$STORE_ID" ]; then echo "No store ID, skipping"; exit 0; fi
-          RESP=$(curl -s -X POST \
-            "https://api.vercel.com/v1/storage/stores/${STORE_ID}/connect" \
+          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
+
+          if [ -z "$STORE_ID" ]; then
+            echo "❌ No Postgres store found in this Vercel account."
+            exit 1
+          fi
+
+          CONNECT_URL="https://api.vercel.com/v1/storage/stores/${STORE_ID}/connect"
+          if [ -n "$TEAM_ID" ]; then CONNECT_URL="${CONNECT_URL}?teamId=${TEAM_ID}"; fi
+
+          RESP=$(curl -s -X POST "$CONNECT_URL" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"projectId\":\"${PROJ_ID}\",\"environments\":[\"production\",\"preview\",\"development\"]}")
           echo "Connect response: $RESP"
 
-      # ── 4. Fetch env vars via API (try all targets) ───────────────────────
+      # ── 4. Pull env vars via vercel CLI (correct orgId = team) ───────────
       - name: Pull Vercel env vars
         run: |
-          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
-          rm -f .env.production
-
-          for i in 1 2 3 4 5 6 7 8 9; do
-            echo "=== Attempt $i: polling for Postgres env vars ==="
-            FOUND=0
-
-            for TARGET in production preview development ""; do
-              LABEL="${TARGET:-all}"
-              if [ -n "$TARGET" ]; then
-                ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env?target=${TARGET}" \
-                  -H "Authorization: Bearer $VERCEL_TOKEN")
-              else
-                ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
-                  -H "Authorization: Bearer $VERCEL_TOKEN")
-              fi
-
-              PG_COUNT=$(echo "$ENV_LIST" | python3 -c "
-              import sys,json
-              envs=json.load(sys.stdin).get('envs',[])
-              print(sum(1 for e in envs if e['key'].startswith('POSTGRES')))
-              " 2>/dev/null || echo "0")
-
-              echo "  target=$LABEL -> $PG_COUNT POSTGRES vars"
-
-              if [ "$PG_COUNT" -gt "0" ]; then
-                echo "✅ Found $PG_COUNT Postgres vars for target=$LABEL, decrypting..."
-                echo "$ENV_LIST" | python3 -c "
-                import sys,json
-                for e in json.load(sys.stdin).get('envs',[]):
-                  print(e['id'] + ' ' + e['key'])
-                " 2>/dev/null | while read ENVID ENVKEY; do
-                  VAL=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${ENVID}" \
-                    -H "Authorization: Bearer $VERCEL_TOKEN" | \
-                    python3 -c "import sys,json; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
-                  echo "${ENVKEY}=${VAL}" >> .env.production
-                done
-                FOUND=1
-                break
-              fi
-            done
-
-            if [ "$FOUND" -eq "1" ]; then break; fi
-
-            echo "⏳ No Postgres vars yet (attempt $i/9), waiting 20s..."
-            sleep 20
-          done
+          # vercel env pull now works because orgId in project.json is the team ID
+          vercel env pull .env.production \
+            --environment production \
+            --token "$VERCEL_TOKEN" \
+            --yes < /dev/null 2>&1 || true
 
           echo "=== Pulled keys ==="
           grep -v "^#" .env.production 2>/dev/null | cut -d'=' -f1 || true
+
+          # Fallback: query the project env API if pull didn't get POSTGRES vars
+          if ! grep -qE "^POSTGRES|^DATABASE_URL" .env.production 2>/dev/null; then
+            echo "⚠️ CLI pull missed POSTGRES vars — trying API fallback..."
+            PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+
+            for i in 1 2 3 4 5; do
+              echo "--- Attempt $i ---"
+              for TARGET in production preview development ""; do
+                LABEL="${TARGET:-all}"
+                if [ -n "$TARGET" ]; then
+                  ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env?target=${TARGET}" \
+                    -H "Authorization: Bearer $VERCEL_TOKEN")
+                else
+                  ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
+                    -H "Authorization: Bearer $VERCEL_TOKEN")
+                fi
+
+                PG_COUNT=$(echo "$ENV_LIST" | python3 -c "
+                import sys,json
+                envs=json.load(sys.stdin).get('envs',[])
+                print(sum(1 for e in envs if e['key'].startswith('POSTGRES') or e['key']=='DATABASE_URL'))
+                " 2>/dev/null || echo "0")
+
+                echo "  target=$LABEL -> $PG_COUNT vars"
+
+                if [ "$PG_COUNT" -gt "0" ]; then
+                  echo "$ENV_LIST" | python3 -c "
+                  import sys,json
+                  for e in json.load(sys.stdin).get('envs',[]):
+                    print(e['id'] + ' ' + e['key'])
+                  " 2>/dev/null | while read ENVID ENVKEY; do
+                    VAL=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${ENVID}" \
+                      -H "Authorization: Bearer $VERCEL_TOKEN" | \
+                      python3 -c "import sys,json; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
+                    echo "${ENVKEY}=${VAL}" >> .env.production
+                  done
+                  break 2
+                fi
+              done
+
+              echo "⏳ Waiting 20s (attempt $i/5)..."
+              sleep 20
+            done
+
+            echo "=== Keys after fallback ==="
+            grep -v "^#" .env.production 2>/dev/null | cut -d'=' -f1 || true
+          fi
 
       # ── 5. Push schema & seed database ───────────────────────────────────
       - name: Setup database
         run: |
           set -a; source .env.production 2>/dev/null || true; set +a
-          DB_URL="${POSTGRES_PRISMA_URL:-${POSTGRES_URL:-$DATABASE_URL}}"
+          DB_URL="${POSTGRES_PRISMA_URL:-${POSTGRES_URL:-${DATABASE_URL:-}}}"
           if [ -z "$DB_URL" ]; then
             echo "❌ No DB URL! Contents of .env.production:"
-            cat .env.production
+            cat .env.production 2>/dev/null || echo "(file missing)"
             exit 1
           fi
           echo "✅ DB URL found: ${DB_URL:0:40}..."
@@ -179,12 +199,16 @@ jobs:
       - name: Set AUTH_SECRET
         run: |
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
           AUTH_SECRET=$(openssl rand -base64 32)
-          curl -s -X DELETE \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/env?key=AUTH_SECRET" \
+
+          BASE="https://api.vercel.com/v10/projects/${PROJ_ID}/env"
+          TPARAM=""
+          if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
+
+          curl -s -X DELETE "${BASE}?key=AUTH_SECRET${TEAM_ID:+&teamId=${TEAM_ID}}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" || true
-          curl -s -X POST \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
+          curl -s -X POST "${BASE}${TPARAM}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"key\":\"AUTH_SECRET\",\"value\":\"${AUTH_SECRET}\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}"
@@ -204,10 +228,13 @@ jobs:
       - name: Set NEXTAUTH_URL & final deploy
         run: |
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
           DEPLOY_URL="${{ steps.deploy1.outputs.url }}"
 
-          PROD_ALIAS=$(curl -s "https://api.vercel.com/v9/projects/${PROJ_ID}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
+          PROJ_URL="https://api.vercel.com/v9/projects/${PROJ_ID}"
+          if [ -n "$TEAM_ID" ]; then PROJ_URL="${PROJ_URL}?teamId=${TEAM_ID}"; fi
+
+          PROD_ALIAS=$(curl -s "$PROJ_URL" -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
           import sys,json
           d=json.load(sys.stdin)
           for a in d.get('alias',[]):
@@ -218,11 +245,13 @@ jobs:
 
           NEXTAUTH_URL="${PROD_ALIAS:-$DEPLOY_URL}"
 
-          curl -s -X DELETE \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/env?key=NEXTAUTH_URL" \
+          BASE="https://api.vercel.com/v10/projects/${PROJ_ID}/env"
+          TPARAM=""
+          if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
+
+          curl -s -X DELETE "${BASE}?key=NEXTAUTH_URL${TEAM_ID:+&teamId=${TEAM_ID}}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" || true
-          curl -s -X POST \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
+          curl -s -X POST "${BASE}${TPARAM}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"key\":\"NEXTAUTH_URL\",\"value\":\"${NEXTAUTH_URL}\",\"type\":\"plain\",\"target\":[\"production\",\"preview\"]}"
