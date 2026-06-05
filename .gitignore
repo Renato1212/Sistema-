@@ -11,7 +11,7 @@ out/
 .env.*.local
 
 # storage (private files - never commit)
-storage/
+/storage/
 
 # database
 *.db
