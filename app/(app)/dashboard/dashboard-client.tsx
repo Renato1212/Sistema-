@@ -1,0 +1,260 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from "recharts";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { startOfMonth, startOfYear, subDays, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+type Currency = "BRL" | "EUR";
+type Preset = "today" | "week" | "month" | "year" | "custom";
+
+interface DashboardData {
+  total: number;
+  currency: string;
+  byDate: { date: string; amount: number }[];
+  byPatient: { id: string; name: string; total: number }[];
+  byProcedure: { id: string; name: string; total: number }[];
+}
+
+const CHART_COLORS = ["#B5915E", "#9F6A53", "#BE8C76", "#DACAB4", "#241C18", "#F4EDE2"];
+
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+function getPresetDates(preset: Preset): { from: string; to: string } {
+  const now = new Date();
+  switch (preset) {
+    case "today": return { from: fmt(now), to: fmt(now) };
+    case "week": return { from: fmt(subDays(now, 7)), to: fmt(now) };
+    case "month": return { from: fmt(startOfMonth(now)), to: fmt(now) };
+    case "year": return { from: fmt(startOfYear(now)), to: fmt(now) };
+    default: return { from: fmt(subDays(now, 30)), to: fmt(now) };
+  }
+}
+
+export function DashboardClient() {
+  const [currency, setCurrency] = useState<Currency>("BRL");
+  const [preset, setPreset] = useState<Preset>("month");
+  const [dates, setDates] = useState(getPresetDates("month"));
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ from: dates.from, to: dates.to, currency });
+    const res = await fetch(`/api/dashboard?${params}`);
+    setData(await res.json());
+    setLoading(false);
+  }, [dates, currency]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  function selectPreset(p: Preset) {
+    setPreset(p);
+    if (p !== "custom") setDates(getPresetDates(p));
+  }
+
+  const presets: { key: Preset; label: string }[] = [
+    { key: "today", label: "Hoje" },
+    { key: "week", label: "7 dias" },
+    { key: "month", label: "Mês atual" },
+    { key: "year", label: "Ano" },
+    { key: "custom", label: "Personalizado" },
+  ];
+
+  return (
+    <div className="p-8">
+      <h1 className="font-bodoni text-display-md text-cacau mb-8">Dashboard</h1>
+
+      {/* Controls */}
+      <div className="bg-white border border-areia rounded-sm p-4 mb-8 flex flex-wrap gap-4 items-center">
+        {/* Presets */}
+        <div className="flex items-center gap-1 border border-areia rounded-sm p-0.5">
+          {presets.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => selectPreset(p.key)}
+              className={`px-3 py-1.5 text-xs rounded-sm transition-colors ${
+                preset === p.key ? "bg-champanhe text-white" : "text-cacau/60 hover:text-cacau"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom date range */}
+        {preset === "custom" && (
+          <div className="flex items-center gap-2">
+            <input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))}
+              className="px-3 py-1.5 text-sm border border-areia rounded-sm focus:outline-none focus:border-champanhe" />
+            <span className="text-cacau/40 text-xs">–</span>
+            <input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))}
+              className="px-3 py-1.5 text-sm border border-areia rounded-sm focus:outline-none focus:border-champanhe" />
+          </div>
+        )}
+
+        {/* Currency */}
+        <div className="flex items-center gap-1 border border-areia rounded-sm p-0.5 ml-auto">
+          {(["BRL", "EUR"] as Currency[]).map((c) => (
+            <button
+              key={c}
+              onClick={() => setCurrency(c)}
+              className={`px-4 py-1.5 text-xs rounded-sm transition-colors ${
+                currency === c ? "bg-champanhe text-white" : "text-cacau/60 hover:text-cacau"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-cacau/40">Carregando…</p>
+      ) : !data || data.byDate.length === 0 ? (
+        <div className="text-center py-20 text-cacau/40">
+          <p className="font-newsreader italic text-lg">Sem dados para o período selecionado.</p>
+          <p className="text-sm mt-1">Tente expandir o período ou trocar a moeda.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-10">
+          {/* Total KPI */}
+          <div className="isolinhas bg-cacau text-white rounded-sm p-8">
+            <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Faturamento no período</p>
+            <p className="font-bodoni text-5xl">{formatCurrency(data.total, currency)}</p>
+            <p className="text-sm text-white/50 mt-2">
+              {dates.from === dates.to ? formatDate(dates.from) : `${formatDate(dates.from)} – ${formatDate(dates.to)}`} · {data.byDate.length} dia{data.byDate.length !== 1 ? "s" : ""} com receita
+            </p>
+          </div>
+
+          {/* Revenue by date */}
+          <section>
+            <h2 className="font-bodoni text-xl text-cacau mb-4">Faturamento por período</h2>
+            <div className="bg-white border border-areia rounded-sm p-6">
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={data.byDate}>
+                  <defs>
+                    <linearGradient id="champGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#B5915E" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#B5915E" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#DACAB4" strokeOpacity={0.5} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9F6A53" }}
+                    tickFormatter={(v) => format(new Date(v + "T12:00:00"), "dd/MM", { locale: ptBR })} />
+                  <YAxis tick={{ fontSize: 11, fill: "#9F6A53" }}
+                    tickFormatter={(v) => `${currency === "BRL" ? "R$" : "€"}${(v / 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                  <Tooltip
+                    formatter={(v: number) => [formatCurrency(v, currency), "Faturamento"]}
+                    labelFormatter={(l) => formatDate(l)}
+                    contentStyle={{ border: "1px solid #DACAB4", borderRadius: 2, fontSize: 12 }}
+                  />
+                  <Area type="monotone" dataKey="amount" stroke="#B5915E" strokeWidth={2} fill="url(#champGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          {/* By patient */}
+          <section>
+            <h2 className="font-bodoni text-xl text-cacau mb-4">Faturamento por paciente</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white border border-areia rounded-sm p-6">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={data.byPatient.slice(0, 8)} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#DACAB4" strokeOpacity={0.5} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: "#9F6A53" }}
+                      tickFormatter={(v) => `${(v / 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#241C18" }} width={120} />
+                    <Tooltip
+                      formatter={(v: number) => [formatCurrency(v, currency), "Total"]}
+                      contentStyle={{ border: "1px solid #DACAB4", borderRadius: 2, fontSize: 12 }}
+                    />
+                    <Bar dataKey="total" fill="#B5915E" radius={[0, 2, 2, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-white border border-areia rounded-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-areia/20 border-b border-areia">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Paciente</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-areia/40">
+                    {data.byPatient.map((p) => (
+                      <tr key={p.id} className="hover:bg-areia/10">
+                        <td className="px-4 py-2.5">
+                          <Link href={`/pacientes/${p.id}`} className="hover:text-champanhe transition-colors">{p.name}</Link>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(p.total, currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          {/* By procedure */}
+          <section>
+            <h2 className="font-bodoni text-xl text-cacau mb-4">Faturamento por procedimento</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white border border-areia rounded-sm p-6">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={data.byProcedure}
+                      dataKey="total"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      innerRadius={50}
+                    >
+                      {data.byProcedure.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number) => [formatCurrency(v, currency), "Total"]}
+                      contentStyle={{ border: "1px solid #DACAB4", borderRadius: 2, fontSize: 12 }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-white border border-areia rounded-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-areia/20 border-b border-areia">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Procedimento</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase tracking-wide text-cacau/50">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-areia/40">
+                    {data.byProcedure.map((p, i) => (
+                      <tr key={p.id} className="hover:bg-areia/10">
+                        <td className="px-4 py-2.5 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                          {p.name}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(p.total, currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,700;1,6..96,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --color-marfim: #F4EDE2;
+  --color-areia: #DACAB4;
+  --color-cacau: #241C18;
+  --color-argila: #BE8C76;
+  --color-terracota: #9F6A53;
+  --color-champanhe: #B5915E;
+  --font-bodoni: 'Bodoni Moda', Georgia, serif;
+  --font-newsreader: 'Newsreader', Georgia, serif;
+  --font-hanken: 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+html {
+  background-color: var(--color-marfim);
+  color: var(--color-cacau);
+  font-family: var(--font-hanken);
+}
+
+body {
+  min-height: 100vh;
+  background-color: #F4EDE2;
+}
+
+/* Fine hairline scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #F4EDE2; }
+::-webkit-scrollbar-thumb { background: #DACAB4; border-radius: 2px; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #B5915E;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Isolinhas texture for decorative regions */
+.isolinhas {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23DACAB4' stroke-width='0.5' opacity='0.4'%3E%3Ccircle cx='30' cy='30' r='28'/%3E%3Ccircle cx='30' cy='30' r='22'/%3E%3Ccircle cx='30' cy='30' r='16'/%3E%3Ccircle cx='30' cy='30' r='10'/%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 60px 60px;
+}

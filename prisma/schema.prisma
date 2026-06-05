@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STAFF")
+  createdAt    DateTime @default(now())
+
+  attachments Attachment[]
+}
+
+model Patient {
+  id                   String    @id @default(cuid())
+  fullName             String
+  birthDate            DateTime?
+  email                String?
+  phone                String?
+  marketingConsent     Boolean   @default(false)
+  marketingConsentDate DateTime?
+  notes                String?
+  deletedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  procedures   PatientProcedure[]
+  attachments  Attachment[]
+  appointments Appointment[]
+}
+
+model ProcedureType {
+  id                String  @id @default(cuid())
+  name              String
+  defaultPriceCents Int?
+  defaultCurrency   String  @default("BRL")
+  active            Boolean @default(true)
+
+  procedures   PatientProcedure[]
+  appointments Appointment[]
+}
+
+model PatientProcedure {
+  id              String   @id @default(cuid())
+  patientId       String
+  procedureTypeId String?
+  customName      String?
+  amountCents     Int
+  currency        String   @default("BRL")
+  date            DateTime
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  procedureType ProcedureType? @relation(fields: [procedureTypeId], references: [id])
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  patientId       String?
+  nameSnapshot    String
+  procedureTypeId String?
+  procedureText   String?
+  date            DateTime
+  time            String
+  locationId      String?
+  locationText    String?
+  notes           String?
+  status          String   @default("AGENDADO")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient       Patient?       @relation(fields: [patientId], references: [id])
+  procedureType ProcedureType? @relation(fields: [procedureTypeId], references: [id])
+  location      Location?      @relation(fields: [locationId], references: [id])
+}
+
+model Location {
+  id     String  @id @default(cuid())
+  name   String
+  active Boolean @default(true)
+
+  appointments Appointment[]
+}
+
+model Attachment {
+  id               String   @id @default(cuid())
+  patientId        String
+  type             String
+  fileName         String
+  storageKey       String   @unique
+  mimeType         String
+  sizeBytes        Int
+  uploadedAt       DateTime @default(now())
+  uploadedByUserId String
+
+  patient    Patient @relation(fields: [patientId], references: [id])
+  uploadedBy User    @relation(fields: [uploadedByUserId], references: [id])
+}
