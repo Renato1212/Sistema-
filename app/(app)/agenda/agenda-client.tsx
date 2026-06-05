@@ -285,7 +285,6 @@ export function AgendaClient({ procedureTypes }: Props) {
       {/* Appointment modal */}
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editTarget ? "Editar Agendamento" : "Novo Agendamento"} size="lg">
         <div className="flex flex-col gap-4">
-          {/* Patient autocomplete */}
           <div>
             <label className="cp-label">Paciente (opcional)</label>
             <div className="relative">
