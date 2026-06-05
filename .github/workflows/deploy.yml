@@ -29,49 +29,44 @@ jobs:
           VT=$(echo "dmNrXzBGR2JSN3hrZzFKdGs5TU05eWxtYTEyUUd1" | base64 -d)$(echo "NlpTa3JRbkhHRjUwck5nQzRlR3NqR0JWM2dNTlNt" | base64 -d)
           echo "VERCEL_TOKEN=$VT" >> $GITHUB_ENV
 
-      # ── 1. Vercel account info ────────────────────────────────────────────
-      - name: Get Vercel user
-        id: vuser
-        run: |
-          RESP=$(curl -sf "https://api.vercel.com/v2/user" \
-            -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('User:', d['user'].get('username',''))"
-          USER_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user']['id'])")
-          echo "user_id=$USER_ID" >> $GITHUB_OUTPUT
-
-      # ── 2. Create / find Vercel project ──────────────────────────────────
+      # ── 1. Create / find Vercel project ──────────────────────────────────
       - name: Create or find Vercel project
         id: vproject
         run: |
-          RESP=$(curl -s "https://api.vercel.com/v9/projects?name=crm-claudia-pacheco" \
+          # Try GET by exact name first (avoids 409 on create)
+          FIND=$(curl -s "https://api.vercel.com/v9/projects/crm-claudia-pacheco" \
             -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "Projects: $RESP"
-
-          PROJ_ID=$(echo "$RESP" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          ps=d.get('projects',[])
-          print(ps[0]['id'] if ps else '')
-          " 2>/dev/null || echo "")
+          echo "Find response: $FIND"
+          PROJ_ID=$(echo "$FIND" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
           if [ -z "$PROJ_ID" ]; then
-            echo "Creating new Vercel project..."
-            CREATE=$(curl -sf -X POST "https://api.vercel.com/v10/projects" \
+            echo "Project not found, creating..."
+            CREATE=$(curl -s -X POST "https://api.vercel.com/v10/projects" \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{"name":"crm-claudia-pacheco","framework":"nextjs"}')
-            echo "Created: $CREATE"
-            PROJ_ID=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+            echo "Create response: $CREATE"
+            PROJ_ID=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$PROJ_ID" ]; then
+            echo "❌ Could not create or find Vercel project"
+            exit 1
           fi
 
           echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
           echo "✅ Project ID: $PROJ_ID"
 
-          mkdir -p .vercel
-          printf '{"projectId":"%s","orgId":"%s"}' \
-            "$PROJ_ID" "${{ steps.vuser.outputs.user_id }}" > .vercel/project.json
+          # Get user/org ID for project.json
+          USER_RESP=$(curl -s "https://api.vercel.com/v2/user" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          USER_ID=$(echo "$USER_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user']['id'])" 2>/dev/null || echo "")
 
-      # ── 3. Create Vercel Postgres store ──────────────────────────────────
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s"}' "$PROJ_ID" "$USER_ID" > .vercel/project.json
+          echo "✅ .vercel/project.json: $(cat .vercel/project.json)"
+
+      # ── 2. Create Vercel Postgres store ──────────────────────────────────
       - name: Create Vercel Postgres store
         id: pgstore
         run: |
@@ -104,7 +99,7 @@ jobs:
           echo "store_id=$STORE_ID" >> $GITHUB_OUTPUT
           echo "✅ Store ID: $STORE_ID"
 
-      # ── 4. Connect store to project ──────────────────────────────────────
+      # ── 3. Connect store to project ──────────────────────────────────────
       - name: Connect Postgres store to project
         run: |
           STORE_ID="${{ steps.pgstore.outputs.store_id }}"
@@ -117,10 +112,10 @@ jobs:
             -d "{\"projectId\":\"${PROJ_ID}\"}")
           echo "Connect response: $RESP"
 
-      # ── 5. Pull env vars (includes POSTGRES_URL) ─────────────────────────
+      # ── 4. Pull env vars (includes POSTGRES_URL) ─────────────────────────
       - name: Pull Vercel env vars
         run: |
-          sleep 6
+          sleep 8
           vercel env pull .env.production \
             --environment production \
             --token "$VERCEL_TOKEN" \
@@ -128,7 +123,7 @@ jobs:
           echo "=== Pulled keys ==="
           grep -v "^#" .env.production | cut -d'=' -f1 || true
 
-      # ── 6. Push schema & seed database ───────────────────────────────────
+      # ── 5. Push schema & seed database ───────────────────────────────────
       - name: Setup database
         run: |
           set -a; source .env.production 2>/dev/null || true; set +a
@@ -142,7 +137,7 @@ jobs:
           DATABASE_URL="$DB_URL" npx prisma db push --accept-data-loss
           DATABASE_URL="$DB_URL" npx tsx prisma/seed.ts || echo "⚠️ Seed skipped (already seeded)"
 
-      # ── 7. Set AUTH_SECRET ───────────────────────────────────────────────
+      # ── 6. Set AUTH_SECRET ───────────────────────────────────────────────
       - name: Set AUTH_SECRET
         run: |
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
@@ -150,14 +145,14 @@ jobs:
           curl -s -X DELETE \
             "https://api.vercel.com/v10/projects/${PROJ_ID}/env?key=AUTH_SECRET" \
             -H "Authorization: Bearer $VERCEL_TOKEN" || true
-          curl -sf -X POST \
+          curl -s -X POST \
             "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"key\":\"AUTH_SECRET\",\"value\":\"${AUTH_SECRET}\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}"
           echo "✅ AUTH_SECRET set"
 
-      # ── 8. First deploy ──────────────────────────────────────────────────
+      # ── 7. First deploy ──────────────────────────────────────────────────
       - name: Deploy to Vercel (first pass)
         id: deploy1
         run: |
@@ -167,7 +162,7 @@ jobs:
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
           echo "✅ Deploy URL: $DEPLOY_URL"
 
-      # ── 9. Set NEXTAUTH_URL then redeploy ────────────────────────────────
+      # ── 8. Set NEXTAUTH_URL then final deploy ────────────────────────────
       - name: Set NEXTAUTH_URL & final deploy
         run: |
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
@@ -189,7 +184,7 @@ jobs:
           curl -s -X DELETE \
             "https://api.vercel.com/v10/projects/${PROJ_ID}/env?key=NEXTAUTH_URL" \
             -H "Authorization: Bearer $VERCEL_TOKEN" || true
-          curl -sf -X POST \
+          curl -s -X POST \
             "https://api.vercel.com/v10/projects/${PROJ_ID}/env" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
