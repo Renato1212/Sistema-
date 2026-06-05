@@ -8,6 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
     steps:
       - name: Checkout
@@ -23,11 +25,6 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
-
-      - name: Assemble token
-        run: |
-          VT=$(echo "dmNrXzBGR2JSN3hrZzFKdGs5TU05eWxtYTEyUUd1" | base64 -d)$(echo "NlpTa3JRbkhHRjUwck5nQzRlR3NqR0JWM2dNTlNt" | base64 -d)
-          echo "VERCEL_TOKEN=$VT" >> $GITHUB_ENV
 
       # ── 1. Create / find Vercel project ──────────────────────────────────
       - name: Create or find Vercel project
