@@ -30,7 +30,6 @@ jobs:
       - name: Create or find Vercel project
         id: vproject
         run: |
-          # Try GET by exact name first (avoids 409 on create)
           FIND=$(curl -s "https://api.vercel.com/v9/projects/crm-claudia-pacheco" \
             -H "Authorization: Bearer $VERCEL_TOKEN")
           echo "Find response: $FIND"
@@ -54,7 +53,6 @@ jobs:
           echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
           echo "✅ Project ID: $PROJ_ID"
 
-          # Get user/org ID for project.json
           USER_RESP=$(curl -s "https://api.vercel.com/v2/user" \
             -H "Authorization: Bearer $VERCEL_TOKEN")
           USER_ID=$(echo "$USER_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user']['id'])" 2>/dev/null || echo "")
@@ -109,23 +107,43 @@ jobs:
             -d "{\"projectId\":\"${PROJ_ID}\"}")
           echo "Connect response: $RESP"
 
-      # ── 4. Pull env vars — retry until POSTGRES_URL is provisioned ────────
+      # ── 4. Fetch env vars via API (no interactive CLI) ────────────────────
       - name: Pull Vercel env vars
         run: |
-          for i in 1 2 3 4 5 6; do
-            echo "Attempt $i: pulling env vars..."
-            vercel env pull .env.production \
-              --environment production \
-              --token "$VERCEL_TOKEN" \
-              --yes 2>/dev/null || true
-            DB_URL=$(grep -E "^POSTGRES" .env.production 2>/dev/null | head -1 | cut -d'=' -f2-)
-            if [ -n "$DB_URL" ]; then
-              echo "✅ Postgres URL found on attempt $i"
+          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          rm -f .env.production
+
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: fetching env vars from Vercel API..."
+            ENV_LIST=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env?target=production" \
+              -H "Authorization: Bearer $VERCEL_TOKEN")
+            echo "Env list: $ENV_LIST"
+
+            PG_COUNT=$(echo "$ENV_LIST" | python3 -c "
+          import sys,json
+          envs=json.load(sys.stdin).get('envs',[])
+          print(sum(1 for e in envs if e['key'].startswith('POSTGRES')))
+          " 2>/dev/null || echo "0")
+
+            if [ "$PG_COUNT" -gt "0" ]; then
+              echo "✅ Found $PG_COUNT Postgres vars, decrypting..."
+              echo "$ENV_LIST" | python3 -c "
+          import sys,json
+          for e in json.load(sys.stdin).get('envs',[]):
+              print(e['id'] + ' ' + e['key'])
+          " 2>/dev/null | while read ENVID ENVKEY; do
+                VAL=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${ENVID}" \
+                  -H "Authorization: Bearer $VERCEL_TOKEN" | \
+                  python3 -c "import sys,json; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
+                echo "${ENVKEY}=${VAL}" >> .env.production
+              done
               break
             fi
-            echo "⏳ Postgres URL not ready yet, waiting 20s..."
+
+            echo "⏳ Postgres env vars not ready yet (attempt $i/5), waiting 20s..."
             sleep 20
           done
+
           echo "=== Pulled keys ==="
           grep -v "^#" .env.production 2>/dev/null | cut -d'=' -f1 || true
 
@@ -162,7 +180,7 @@ jobs:
       - name: Deploy to Vercel (first pass)
         id: deploy1
         run: |
-          OUTPUT=$(vercel deploy --prod --token "$VERCEL_TOKEN" --yes 2>&1)
+          OUTPUT=$(vercel deploy --prod --token "$VERCEL_TOKEN" --yes < /dev/null 2>&1)
           echo "$OUTPUT"
           DEPLOY_URL=$(echo "$OUTPUT" | grep -Eo "https://[a-z0-9._-]+\.vercel\.app" | tail -1)
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
@@ -174,7 +192,6 @@ jobs:
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
           DEPLOY_URL="${{ steps.deploy1.outputs.url }}"
 
-          # Get stable production alias
           PROD_ALIAS=$(curl -s "https://api.vercel.com/v9/projects/${PROJ_ID}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
           import sys,json
@@ -196,8 +213,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"key\":\"NEXTAUTH_URL\",\"value\":\"${NEXTAUTH_URL}\",\"type\":\"plain\",\"target\":[\"production\",\"preview\"]}"
 
-          # Final deploy with all env vars in place
-          FINAL=$(vercel deploy --prod --token "$VERCEL_TOKEN" --yes 2>&1)
+          FINAL=$(vercel deploy --prod --token "$VERCEL_TOKEN" --yes < /dev/null 2>&1)
           FINAL_URL=$(echo "$FINAL" | grep -Eo "https://[a-z0-9._-]+\.vercel\.app" | tail -1)
 
           echo ""
