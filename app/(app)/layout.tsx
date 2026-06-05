@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <ToastProvider>
       <div className="flex min-h-screen">
         <Nav />
-        <main className="flex-1 ml-[220px] min-h-screen bg-marfim">
+        <main className="flex-1 md:ml-[220px] min-h-screen bg-marfim pt-14 md:pt-0">
           {children}
         </main>
       </div>
