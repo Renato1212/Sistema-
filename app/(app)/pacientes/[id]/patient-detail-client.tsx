@@ -88,34 +88,39 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   const [uploadForm, setUploadForm] = useState({ type: "FOTO_ANTES", file: null as File | null });
 
   async function refreshPatient() {
-    const res = await fetch(`/api/patients/${patient.id}`);
-    const updated = await res.json();
-    const [prRes, attRes] = await Promise.all([
-      fetch(`/api/patients/${patient.id}/procedures`),
-      fetch(`/api/patients/${patient.id}/attachments`),
-    ]);
-    const procedures = await prRes.json();
-    const attachments = await attRes.json();
-    setPatient({ ...updated, procedures, attachments });
+    try {
+      const [patRes, prRes, attRes] = await Promise.all([
+        fetch(`/api/patients/${patient.id}`),
+        fetch(`/api/patients/${patient.id}/procedures`),
+        fetch(`/api/patients/${patient.id}/attachments`),
+      ]);
+      if (!patRes.ok || !prRes.ok || !attRes.ok) { toast("Erro ao atualizar dados.", "error"); return; }
+      const [updated, procedures, attachments] = await Promise.all([patRes.json(), prRes.json(), attRes.json()]);
+      setPatient({ ...updated, procedures, attachments });
+    } catch {
+      toast("Erro ao atualizar dados.", "error");
+    }
   }
 
   async function handleArchive() {
     if (!confirm(`Arquivar ${patient.fullName}?`)) return;
-    await fetch(`/api/patients/${patient.id}`, {
+    const res = await fetch(`/api/patients/${patient.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deletedAt: new Date().toISOString() }),
     });
+    if (!res.ok) { toast("Erro ao arquivar paciente.", "error"); return; }
     toast("Paciente arquivado.", "info");
     router.push("/pacientes");
   }
 
   async function handleRestore() {
-    await fetch(`/api/patients/${patient.id}`, {
+    const res = await fetch(`/api/patients/${patient.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deletedAt: null }),
     });
+    if (!res.ok) { toast("Erro ao restaurar paciente.", "error"); return; }
     toast("Paciente restaurado.", "success");
     await refreshPatient();
   }
@@ -143,7 +148,8 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
   async function handleDeleteProcedure(procedureId: string) {
     if (!confirm("Remover este procedimento?")) return;
-    await fetch(`/api/patients/${patient.id}/procedures?procedureId=${procedureId}`, { method: "DELETE" });
+    const res = await fetch(`/api/patients/${patient.id}/procedures?procedureId=${procedureId}`, { method: "DELETE" });
+    if (!res.ok) { toast("Erro ao remover procedimento.", "error"); return; }
     toast("Procedimento removido.", "info");
     await refreshPatient();
   }
@@ -166,7 +172,8 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
   async function handleDeleteAttachment(attachmentId: string) {
     if (!confirm("Remover este arquivo?")) return;
-    await fetch(`/api/patients/${patient.id}/attachments?attachmentId=${attachmentId}`, { method: "DELETE" });
+    const res = await fetch(`/api/patients/${patient.id}/attachments?attachmentId=${attachmentId}`, { method: "DELETE" });
+    if (!res.ok) { toast("Erro ao remover arquivo.", "error"); return; }
     toast("Arquivo removido.", "info");
     await refreshPatient();
   }
@@ -281,7 +288,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                 </thead>
                 <tbody className="divide-y divide-black/[0.04]">
                   {patient.procedures.map((proc) => (
-                    <tr key={proc.id} className="hover:bg-areia/8 transition-colors">
+                    <tr key={proc.id} className="hover:bg-areia/[0.08] transition-colors">
                       <td className="px-5 py-4">
                         {proc.procedureType?.name ?? proc.customName ?? "—"}
                         {proc.notes && <p className="text-xs text-cacau/35 mt-0.5">{proc.notes}</p>}

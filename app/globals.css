@@ -67,7 +67,7 @@ a, button, input, select, textarea {
     @apply bg-white rounded-xl border border-black/5 shadow-card;
   }
   .cp-field {
-    @apply w-full px-3.5 py-2.5 text-sm bg-white border border-black/10 rounded-sm text-cacau placeholder:text-cacau/30 focus:outline-none focus:border-champanhe focus:ring-2 focus:ring-champanhe/15 transition-all;
+    @apply w-full px-3.5 py-2.5 text-sm bg-white border border-black/10 rounded-sm text-cacau placeholder:text-cacau/30 focus:outline-none focus:border-champanhe focus:ring-2 focus:ring-champanhe/[0.15] transition-all;
   }
   .cp-label {
     @apply text-[11px] font-medium text-cacau/50 uppercase tracking-wider block mb-1.5;

@@ -98,7 +98,7 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
             </thead>
             <tbody className="divide-y divide-black/[0.04]">
               {patients.map((p) => (
-                <tr key={p.id} className="hover:bg-areia/8 transition-colors">
+                <tr key={p.id} className="hover:bg-areia/[0.08] transition-colors">
                   <td className="px-5 py-4">
                     <Link href={`/pacientes/${p.id}`} className="font-medium text-cacau hover:text-champanhe transition-colors">
                       {p.fullName}

@@ -44,9 +44,11 @@ export function DashboardClient() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ from: dates.from, to: dates.to, currency });
-    const res = await fetch(`/api/dashboard?${params}`);
-    setData(await res.json());
+    try {
+      const params = new URLSearchParams({ from: dates.from, to: dates.to, currency });
+      const res = await fetch(`/api/dashboard?${params}`);
+      if (res.ok) setData(await res.json());
+    } catch { /* network error — leave data null */ }
     setLoading(false);
   }, [dates]);
 
@@ -99,7 +101,7 @@ export function DashboardClient() {
           </div>
         )}
 
-        <span className="ml-auto text-xs text-cacau/40 border border-black/8 rounded-full px-3 py-1">
+        <span className="ml-auto text-xs text-cacau/40 border border-black/[0.08] rounded-full px-3 py-1">
           € Euro
         </span>
       </div>

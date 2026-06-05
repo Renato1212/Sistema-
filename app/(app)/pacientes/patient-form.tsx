@@ -70,7 +70,7 @@ export function PatientForm({ defaultValues, onSuccess, onCancel, patientId }: P
       <Textarea label="Comentários" {...register("notes")} rows={3} />
 
       {/* Marketing consent */}
-      <div className="border border-black/8 rounded-xl p-4 bg-areia/10">
+      <div className="border border-black/[0.08] rounded-xl p-4 bg-areia/10">
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"

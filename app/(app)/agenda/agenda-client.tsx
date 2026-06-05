@@ -34,17 +34,17 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface Props {
   procedureTypes: ProcedureType[];
-  locations: Location[];
+  locations?: Location[];
 }
 
 const today = new Date().toISOString().slice(0, 10);
 const nextWeek = addDays(new Date(), 14).toISOString().slice(0, 10);
 
-export function AgendaClient({ procedureTypes, locations }: Props) {
+export function AgendaClient({ procedureTypes }: Props) {
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ from: today, to: nextWeek, locationId: "", status: "" });
+  const [filters, setFilters] = useState({ from: today, to: nextWeek, status: "" });
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Appointment | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
@@ -59,21 +59,26 @@ export function AgendaClient({ procedureTypes, locations }: Props) {
     const params = new URLSearchParams();
     if (filters.from) params.set("from", filters.from);
     if (filters.to) params.set("to", filters.to);
-    if (filters.locationId) params.set("locationId", filters.locationId);
     if (filters.status) params.set("status", filters.status);
-    const res = await fetch(`/api/appointments?${params}`);
-    const data = await res.json();
-    setAppointments(data);
+    try {
+      const res = await fetch(`/api/appointments?${params}`);
+      if (!res.ok) { toast("Erro ao carregar agendamentos.", "error"); setLoading(false); return; }
+      setAppointments(await res.json());
+    } catch {
+      toast("Erro ao carregar agendamentos.", "error");
+    }
     setLoading(false);
-  }, [filters]);
+  }, [filters, toast]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
   useEffect(() => {
     if (patientSearch.length < 2) { setPatientResults([]); return; }
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/patients?q=${encodeURIComponent(patientSearch)}`);
-      setPatientResults(await res.json());
+      try {
+        const res = await fetch(`/api/patients?q=${encodeURIComponent(patientSearch)}`);
+        if (res.ok) setPatientResults(await res.json());
+      } catch { /* ignore search errors */ }
     }, 300);
     return () => clearTimeout(t);
   }, [patientSearch]);
@@ -125,7 +130,8 @@ export function AgendaClient({ procedureTypes, locations }: Props) {
 
   async function handleDelete(id: string) {
     if (!confirm("Excluir este agendamento?")) return;
-    await fetch(`/api/appointments/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/appointments/${id}`, { method: "DELETE" });
+    if (!res.ok) { toast("Erro ao remover agendamento.", "error"); return; }
     toast("Agendamento removido.", "info");
     fetchAppointments();
   }
@@ -191,7 +197,7 @@ export function AgendaClient({ procedureTypes, locations }: Props) {
             </thead>
             <tbody className="divide-y divide-black/[0.04]">
               {appointments.map((a) => (
-                <tr key={a.id} className="hover:bg-areia/8 transition-colors">
+                <tr key={a.id} className="hover:bg-areia/[0.08] transition-colors">
                   <td className="px-5 py-4">
                     {a.patient ? (
                       <Link href={`/pacientes/${a.patient.id}`} className="font-medium text-cacau hover:text-champanhe transition-colors">
@@ -217,7 +223,7 @@ export function AgendaClient({ procedureTypes, locations }: Props) {
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1.5 justify-end">
-                      <button onClick={() => openEdit(a)} className="p-1.5 text-cacau/30 hover:text-champanhe hover:bg-champanhe/8 rounded-lg transition-all" title="Editar">
+                      <button onClick={() => openEdit(a)} className="p-1.5 text-cacau/30 hover:text-champanhe hover:bg-champanhe/[0.08] rounded-lg transition-all" title="Editar">
                         <Edit2 size={14} />
                       </button>
                       <button onClick={() => handleDelete(a.id)} className="p-1.5 text-cacau/30 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
@@ -240,13 +246,13 @@ export function AgendaClient({ procedureTypes, locations }: Props) {
             <label className="cp-label">Paciente (opcional)</label>
             <div className="relative">
               <input
-                value={patientSearch || (form.nameSnapshot && form.patientId ? form.nameSnapshot : patientSearch)}
+                value={patientSearch}
                 onChange={(e) => { setPatientSearch(e.target.value); setForm((f) => ({ ...f, patientId: "", nameSnapshot: e.target.value })); }}
                 placeholder="Buscar paciente ou digitar nome…"
                 className="cp-field"
               />
               {patientResults.length > 0 && (
-                <div className="absolute top-full inset-x-0 z-20 bg-white border border-black/8 rounded-xl shadow-apple mt-1 max-h-40 overflow-y-auto">
+                <div className="absolute top-full inset-x-0 z-20 bg-white border border-black/[0.08] rounded-xl shadow-apple mt-1 max-h-40 overflow-y-auto">
                   {patientResults.map((p) => (
                     <button key={p.id} type="button" className="w-full text-left px-4 py-2.5 text-sm hover:bg-areia/20 first:rounded-t-xl last:rounded-b-xl transition-colors"
                       onClick={() => {
