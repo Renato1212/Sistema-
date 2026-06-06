@@ -3,6 +3,12 @@ name: 🚀 Deploy CRM to Vercel
 on:
   push:
     branches: [main]
+  # Self-heal: retry every 6h so a deploy blocked by Vercel's free-tier
+  # daily quota (api-deployments-free-per-day) lands automatically once the
+  # rolling 24h window clears. Trivial against the 100/day cap; the
+  # concurrency group below prevents overlapping runs.
+  schedule:
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 # Cancel an in-progress deploy when a newer commit lands — avoids burning
