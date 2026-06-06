@@ -220,7 +220,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       </div>
 
       {/* Header card */}
-      <div className="isolinhas bg-cacau text-white rounded-xl p-5 sm:p-8 mb-6 sm:mb-8">
+      <div className="hero-dark text-white rounded-2xl p-5 sm:p-8 mb-6 sm:mb-8 shadow-apple">
         <h1 className="font-bodoni text-2xl sm:text-display-md text-white">{patient.fullName}</h1>
         {patient.deletedAt && (
           <span className="text-xs text-red-300/80 mt-1 block">Arquivado em {formatDate(patient.deletedAt)}</span>

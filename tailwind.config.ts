@@ -46,9 +46,6 @@ const config: Config = {
         "display-lg": ["2.5rem", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
         "display-md": ["1.75rem", { lineHeight: "1.2" }],
       },
-      backgroundImage: {
-        isolinhas: "url('/brand/isolinhas-pattern.svg')",
-      },
       borderColor: {
         DEFAULT: "#DACAB4",
       },

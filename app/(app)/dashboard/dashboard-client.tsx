@@ -116,7 +116,7 @@ export function DashboardClient() {
       ) : (
         <div className="flex flex-col gap-6 sm:gap-8">
           {/* Total KPI */}
-          <div className="isolinhas bg-cacau text-white rounded-xl p-6 sm:p-8">
+          <div className="hero-dark text-white rounded-2xl p-6 sm:p-8 shadow-apple">
             <p className="text-[11px] uppercase tracking-[0.18em] text-white/40 mb-3">Faturamento no período</p>
             <p className="font-bodoni text-4xl sm:text-5xl">{formatCurrency(data.total, currency)}</p>
             <p className="text-sm text-white/40 mt-2.5">

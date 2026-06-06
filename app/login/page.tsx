@@ -32,7 +32,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-marfim flex items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0 isolinhas opacity-25 pointer-events-none" />
+      {/* Soft champagne glow — clean, no busy texture */}
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full bg-champanhe/10 blur-3xl pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-sm mx-4">
         {/* Brand mark */}
