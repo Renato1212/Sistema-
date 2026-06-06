@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { PatientForm } from "../patient-form";
 import { formatDate, formatCurrency, calculateAge } from "@/lib/format";
 import { pt } from "@/lib/i18n/pt";
+import { format } from "date-fns";
 
 interface ProcedureType {
   id: string;
@@ -82,7 +83,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
     customName: "",
     amountCents: "",
     currency: "EUR",
-    date: new Date().toISOString().slice(0, 10),
+    date: format(new Date(), "yyyy-MM-dd"),
     notes: "",
   });
   const [uploadForm, setUploadForm] = useState({ type: "FOTO_ANTES", file: null as File | null });
@@ -126,7 +127,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   }
 
   async function handleAddProcedure() {
-    const amount = parseFloat(procForm.amountCents);
+    const amount = parseFloat(procForm.amountCents.replace(",", "."));
     if (!amount || amount <= 0) { toast("Informe o valor.", "error"); return; }
     const res = await fetch(`/api/patients/${patient.id}/procedures`, {
       method: "POST",
@@ -179,7 +180,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
   }
 
   const totalEur = patient.procedures
-    .filter((p) => !p.currency || p.currency === "EUR")
+    .filter((p) => p.currency === "EUR")
     .reduce((s, p) => s + p.amountCents, 0);
 
   const photos = patient.attachments.filter((a) => a.type === "FOTO_ANTES" || a.type === "FOTO_DEPOIS");

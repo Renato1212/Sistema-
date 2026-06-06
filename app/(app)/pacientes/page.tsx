@@ -25,9 +25,9 @@ export default async function PatientsPage({
       deletedAt: showArchived ? { not: null } : null,
       OR: q
         ? [
-            { fullName: { contains: q } },
-            { email: { contains: q } },
-            { phone: { contains: q } },
+            { fullName: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
           ]
         : undefined,
     },

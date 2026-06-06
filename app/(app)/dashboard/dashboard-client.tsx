@@ -22,7 +22,7 @@ interface DashboardData {
 
 const CHART_COLORS = ["#B5915E", "#9F6A53", "#BE8C76", "#DACAB4", "#241C18", "#F4EDE2"];
 
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
+const fmt = (d: Date) => format(d, "yyyy-MM-dd");
 
 function getPresetDates(preset: Preset): { from: string; to: string } {
   const now = new Date();
