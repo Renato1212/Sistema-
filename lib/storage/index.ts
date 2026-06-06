@@ -1,16 +1,12 @@
 import path from "path";
 import { randomUUID } from "crypto";
 
-// Vercel Blob is used only when a token is configured. Otherwise files are
-// persisted as bytes directly in Postgres — which works everywhere, including
-// Vercel's read-only serverless filesystem (where writing to ./storage fails).
 const USE_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 export interface SaveResult {
-  /** Key stored on the attachment row and used in the /api/files/[key] route. */
   storageKey: string;
-  /** Raw bytes to persist in the DB. Null when the file lives in Vercel Blob. */
   data: Buffer | null;
+  blobUrl: string | null;
 }
 
 export const Storage = {
@@ -25,37 +21,41 @@ export const Storage = {
         contentType: mimeType,
         addRandomSuffix: false,
       });
-      return { storageKey: blob.pathname, data: null };
+      return { storageKey: blob.pathname, data: null, blobUrl: blob.url };
     }
 
-    // Default: keep the bytes in the database.
-    return { storageKey: key, data: buffer };
+    // Default: persist bytes in Postgres — works on Vercel's read-only filesystem
+    return { storageKey: key, data: buffer, blobUrl: null };
   },
 
-  async get(key: string, dbData: Buffer | Uint8Array | null): Promise<Buffer> {
+  async get(
+    key: string,
+    dbData?: Buffer | Uint8Array | null,
+    blobUrl?: string | null,
+  ): Promise<Buffer> {
     if (dbData) return Buffer.from(dbData);
-
-    if (USE_BLOB) {
-      const { head } = await import("@vercel/blob");
-      const blob = await head(key);
-      const res = await fetch(blob.url);
+    if (blobUrl) {
+      const res = await fetch(blobUrl);
+      if (!res.ok) throw new Error("Blob fetch failed");
       return Buffer.from(await res.arrayBuffer());
     }
-
     throw new Error("Arquivo não encontrado");
   },
 
-  async delete(key: string, dbData: Buffer | Uint8Array | null): Promise<void> {
-    if (dbData) return; // stored in DB — removed together with the row
-
-    if (USE_BLOB) {
+  async delete(
+    key: string,
+    dbData?: Buffer | Uint8Array | null,
+    blobUrl?: string | null,
+  ): Promise<void> {
+    if (dbData) return; // row deletion removes the bytes
+    if (blobUrl) {
       const { del } = await import("@vercel/blob");
-      await del(key);
+      await del(blobUrl);
     }
   },
 };
 
-// Fields safe to send to the client — everything except the raw `data` bytes.
+// Fields safe to send to the client — excludes raw bytes and internal Blob URL
 export const attachmentSelect = {
   id: true,
   patientId: true,
