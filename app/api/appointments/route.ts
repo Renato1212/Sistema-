@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
   const appointments = await prisma.appointment.findMany({
     where: {
       date: {
-        gte: from ? new Date(from) : undefined,
-        lte: to ? new Date(to + "T23:59:59") : undefined,
+        gte: from ? new Date(from + "T00:00:00.000Z") : undefined,
+        lte: to ? new Date(to + "T23:59:59.999Z") : undefined,
       },
       locationId: locationId || undefined,
       status: status || undefined,

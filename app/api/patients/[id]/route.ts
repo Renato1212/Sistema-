@@ -53,7 +53,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   // Hard delete — requires explicit query param ?hard=true
   const { searchParams } = new URL(req.url);
   if (searchParams.get("hard") === "true") {
-    await prisma.patient.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.patientProcedure.deleteMany({ where: { patientId: id } }),
+      prisma.attachment.deleteMany({ where: { patientId: id } }),
+      prisma.appointment.updateMany({ where: { patientId: id }, data: { patientId: null } }),
+      prisma.patient.delete({ where: { id } }),
+    ]);
     return NextResponse.json({ ok: true });
   }
 

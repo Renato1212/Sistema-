@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
-import { addDays } from "date-fns";
+import { addDays, format } from "date-fns";
 
 interface ProcedureType { id: string; name: string }
 interface Location { id: string; name: string }
@@ -16,12 +16,14 @@ interface Patient { id: string; fullName: string; email: string | null; phone: s
 interface Appointment {
   id: string;
   nameSnapshot: string;
+  procedureTypeId: string | null;
+  procedureText: string | null;
   date: string;
   time: string;
-  status: string;
-  notes: string | null;
-  procedureText: string | null;
+  locationId: string | null;
   locationText: string | null;
+  notes: string | null;
+  status: string;
   patient: { id: string; fullName: string } | null;
   procedureType: { name: string } | null;
   location: { name: string } | null;
@@ -37,10 +39,10 @@ interface Props {
   locations?: Location[];
 }
 
-const today = new Date().toISOString().slice(0, 10);
-const nextWeek = addDays(new Date(), 14).toISOString().slice(0, 10);
+const today = format(new Date(), "yyyy-MM-dd");
+const nextWeek = format(addDays(new Date(), 14), "yyyy-MM-dd");
 
-export function AgendaClient({ procedureTypes }: Props) {
+export function AgendaClient({ procedureTypes, locations = [] }: Props) {
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,7 @@ export function AgendaClient({ procedureTypes }: Props) {
     setForm({
       patientId: a.patient?.id ?? "",
       nameSnapshot: a.nameSnapshot,
-      procedureTypeId: a.procedureType ? procedureTypes.find(p => p.name === a.procedureType?.name)?.id ?? "" : "",
+      procedureTypeId: a.procedureTypeId ?? "",
       procedureText: a.procedureText ?? "",
       date: a.date.slice(0, 10),
       time: a.time,
@@ -104,6 +106,8 @@ export function AgendaClient({ procedureTypes }: Props) {
       notes: a.notes ?? "",
       status: a.status,
     });
+    setPatientSearch(a.patient?.fullName ?? a.nameSnapshot);
+    setPatientResults([]);
     setShowModal(true);
   }
 
@@ -345,12 +349,25 @@ export function AgendaClient({ procedureTypes }: Props) {
 
           <div>
             <label className="cp-label">Local</label>
-            <input
-              value={form.locationText}
-              onChange={(e) => setForm((f) => ({ ...f, locationText: e.target.value }))}
-              placeholder="Ex: Clínica Lisboa, Sala 3…"
-              className="cp-field"
-            />
+            {locations.length > 0 ? (
+              <select
+                value={locations.some(l => l.name === form.locationText) ? form.locationText : (form.locationText ? "__custom__" : "")}
+                onChange={(e) => setForm((f) => ({ ...f, locationText: e.target.value }))}
+                className="cp-field"
+              >
+                <option value="">— Selecionar local —</option>
+                {locations.map((l) => <option key={l.id} value={l.name}>{l.name}</option>)}
+                <option value="__custom__">Outro (digitar)…</option>
+              </select>
+            ) : null}
+            {(locations.length === 0 || !locations.some(l => l.name === form.locationText)) && (
+              <input
+                value={form.locationText === "__custom__" ? "" : form.locationText}
+                onChange={(e) => setForm((f) => ({ ...f, locationText: e.target.value }))}
+                placeholder="Ex: Clínica Lisboa, Sala 3…"
+                className={`cp-field ${locations.length > 0 ? "mt-2" : ""}`}
+              />
+            )}
           </div>
 
           <div>

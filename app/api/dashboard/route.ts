@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { startOfMonth, startOfYear, startOfDay, endOfDay, subDays } from "date-fns";
+import { subDays } from "date-fns";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   const currency = searchParams.get("currency") ?? "EUR";
 
   const dateFilter = {
-    gte: from ? new Date(from) : subDays(new Date(), 30),
-    lte: to ? new Date(to + "T23:59:59") : new Date(),
+    gte: from ? new Date(from + "T00:00:00.000Z") : subDays(new Date(), 30),
+    lte: to ? new Date(to + "T23:59:59.999Z") : new Date(),
   };
 
   const procedures = await prisma.patientProcedure.findMany({

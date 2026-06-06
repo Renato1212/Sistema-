@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
     where: {
       deletedAt: null,
       OR: q ? [
-        { fullName: { contains: q } },
-        { email: { contains: q } },
+        { fullName: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
       ] : undefined,
     },
     orderBy: { fullName: "asc" },
