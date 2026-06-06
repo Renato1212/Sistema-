@@ -98,6 +98,7 @@ model Attachment {
   type             String
   fileName         String
   storageKey       String   @unique
+  blobUrl          String?
   mimeType         String
   sizeBytes        Int
   data             Bytes?

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
 
   let buffer: Buffer;
   try {
-    buffer = await Storage.get(key, attachment.data);
+    buffer = await Storage.get(key, attachment.data, attachment.blobUrl);
   } catch {
     return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
   }

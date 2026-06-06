@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { storageKey, data } = await Storage.save(buffer, file.name, file.type);
+    const { storageKey, data, blobUrl } = await Storage.save(buffer, file.name, file.type);
 
     const attachment = await prisma.attachment.create({
       data: {
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         type,
         fileName: file.name,
         storageKey,
+        blobUrl,
         mimeType: file.type,
         sizeBytes: file.size,
         data,
@@ -77,7 +78,7 @@ export async function DELETE(req: NextRequest) {
   const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
   if (!attachment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await Storage.delete(attachment.storageKey, attachment.data);
+  await Storage.delete(attachment.storageKey, attachment.data, attachment.blobUrl);
   await prisma.attachment.delete({ where: { id: attachmentId } });
   return NextResponse.json({ ok: true });
 }
