@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Cancel an in-progress deploy when a newer commit lands — avoids burning
+# through Vercel's free-tier deploy quota with stacked/superseded runs.
+concurrency:
+  group: deploy-vercel
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -26,8 +32,8 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # ── 1. Find team + project ────────────────────────────────────────────
-      - name: Create or find Vercel project
+      # ── Find team + project, write .vercel/project.json ───────────────────
+      - name: Resolve Vercel project
         id: vproject
         run: |
           TEAM_RESP=$(curl -s "https://api.vercel.com/v2/teams" \
@@ -42,7 +48,6 @@ jobs:
           FIND_URL="https://api.vercel.com/v9/projects/crm-claudia-pacheco"
           if [ -n "$TEAM_ID" ]; then FIND_URL="${FIND_URL}?teamId=${TEAM_ID}"; fi
           FIND=$(curl -s "$FIND_URL" -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "Project find: $FIND"
           PROJ_ID=$(echo "$FIND" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
           if [ -z "$PROJ_ID" ]; then
@@ -52,170 +57,60 @@ jobs:
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{"name":"crm-claudia-pacheco","framework":"nextjs","nodeVersion":"20.x"}')
-            echo "Project create: $CREATE"
             PROJ_ID=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
-          else
-            # Ensure nodeVersion is 20.x (not 24.x which may break builds)
-            TPARAM=""
-            if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
-            curl -s -X PATCH "https://api.vercel.com/v9/projects/${PROJ_ID}${TPARAM}" \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"nodeVersion":"20.x"}' > /dev/null
-            echo "✅ nodeVersion set to 20.x"
           fi
 
           if [ -z "$PROJ_ID" ]; then echo "❌ No project"; exit 1; fi
 
-          echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
           echo "team_id=$TEAM_ID" >> $GITHUB_OUTPUT
-          echo "✅ Project: $PROJ_ID | Team: $TEAM_ID"
-
+          echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
           mkdir -p .vercel
           printf '{"projectId":"%s","orgId":"%s"}' "$PROJ_ID" "$TEAM_ID" > .vercel/project.json
-          echo "✅ project.json: $(cat .vercel/project.json)"
+          echo "✅ Project: $PROJ_ID | Team: $TEAM_ID"
 
-      # ── 2. Connect existing Neon store to this project ────────────────────
-      - name: Connect Postgres store to project
+      # ── Ensure required env vars exist (idempotent — skip if present) ──────
+      - name: Ensure env vars
         run: |
-          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
           PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
           TPARAM=""
           if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
 
-          LIST_URL="https://api.vercel.com/v1/storage/stores"
-          if [ -n "$TEAM_ID" ]; then LIST_URL="${LIST_URL}?teamId=${TEAM_ID}"; fi
-          STORES=$(curl -s "$LIST_URL" -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "Stores: $STORES"
+          EXISTING=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
 
-          STORE_ID=$(echo "$STORES" | python3 -c "
+          has_key() { echo "$EXISTING" | python3 -c "
           import sys,json
           d=json.load(sys.stdin)
-          for s in d.get('stores',[]):
-            secrets=[x['name'] for x in s.get('secrets',[])]
-            evars=[]
-            for pm in s.get('projectsMetadata',[]):
-              evars.extend(pm.get('environmentVariables',[]))
-            if any(k.startswith('POSTGRES') or k=='DATABASE_URL' for k in secrets+evars):
-              print(s['id']); break
-          " 2>/dev/null || echo "")
+          print('yes' if any(e.get('key')=='$1' for e in d.get('envs',[])) else 'no')
+          " 2>/dev/null || echo "no"; }
 
-          if [ -z "$STORE_ID" ]; then echo "No Postgres store found — skipping"; exit 0; fi
-          echo "✅ Found store: $STORE_ID"
-
-          # Try to connect store to project (multiple endpoint variants)
-          for ENV in production preview development; do
-            R=$(curl -s -w "\nHTTP:%{http_code}" -X POST \
-              "https://api.vercel.com/v1/storage/stores/${STORE_ID}/connections${TPARAM}" \
+          set_key() {
+            curl -s -X POST "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
-              -d "{\"projectId\":\"${PROJ_ID}\",\"environment\":\"${ENV}\"}")
-            echo "Connect $ENV: $R"
-          done
+              -d "{\"key\":\"$1\",\"value\":\"$2\",\"type\":\"$3\",\"target\":[\"production\",\"preview\"]}" > /dev/null
+            echo "✅ set $1"
+          }
 
-          # Also try the bulk connect endpoint
-          R2=$(curl -s -w "\nHTTP:%{http_code}" -X POST \
-            "https://api.vercel.com/v1/storage/stores/${STORE_ID}/connect${TPARAM}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"projectId\":\"${PROJ_ID}\",\"environments\":[\"production\",\"preview\",\"development\"]}")
-          echo "Bulk connect: $R2"
+          if [ "$(has_key AUTH_SECRET)" = "no" ]; then
+            set_key AUTH_SECRET "$(openssl rand -base64 32)" encrypted
+          else
+            echo "↪︎ AUTH_SECRET already set"
+          fi
 
-          # Also try the project-level link
-          R3=$(curl -s -w "\nHTTP:%{http_code}" -X POST \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/link${TPARAM}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"storeId\":\"${STORE_ID}\"}")
-          echo "Project link: $R3"
+          if [ "$(has_key AUTH_TRUST_HOST)" = "no" ]; then
+            set_key AUTH_TRUST_HOST "true" plain
+          else
+            echo "↪︎ AUTH_TRUST_HOST already set"
+          fi
 
-      # ── 3. Set AUTH_SECRET ───────────────────────────────────────────────
-      - name: Set AUTH_SECRET
-        run: |
-          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
-          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
-          AUTH_SECRET=$(openssl rand -base64 32)
-          TPARAM=""
-          if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
-
-          # Delete any existing AUTH_SECRET env vars first
-          EXISTING=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "$EXISTING" | python3 -c "
-          import sys,json,subprocess
-          d=json.load(sys.stdin)
-          for e in d.get('envs',[]):
-            if e.get('key')=='AUTH_SECRET':
-              eid=e['id']
-              subprocess.run(['curl','-s','-X','DELETE',
-                f'https://api.vercel.com/v10/projects/$PROJ_ID/env/{eid}?teamId=$TEAM_ID',
-                '-H','Authorization: Bearer \$VERCEL_TOKEN'],check=False)
-          " 2>/dev/null || true
-
-          curl -s -X POST \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"key\":\"AUTH_SECRET\",\"value\":\"${AUTH_SECRET}\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\"]}"
-          echo "✅ AUTH_SECRET set"
-
-      # ── 4. First deploy — stream output so we see build errors ────────────
-      - name: Deploy to Vercel (first pass)
-        id: deploy1
+      # ── Single production deploy ──────────────────────────────────────────
+      - name: Deploy to Vercel
         run: |
           set -o pipefail
-          vercel deploy --prod --token "$VERCEL_TOKEN" --yes < /dev/null 2>&1 | tee /tmp/deploy1.log
-          DEPLOY_URL=$(grep -Eo 'https://[a-z0-9._-]+\.vercel\.app' /tmp/deploy1.log | tail -1)
-          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
-          echo "✅ Deploy URL: $DEPLOY_URL"
-
-      # ── 5. Set NEXTAUTH_URL + final deploy ────────────────────────────────
-      - name: Set NEXTAUTH_URL & final deploy
-        run: |
-          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
-          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
-          DEPLOY_URL="${{ steps.deploy1.outputs.url }}"
-          TPARAM=""
-          if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
-
-          PROJ_URL="https://api.vercel.com/v9/projects/${PROJ_ID}${TPARAM}"
-          PROD_ALIAS=$(curl -s "$PROJ_URL" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          for a in d.get('alias',[]):
-            dom=a.get('domain','')
-            if dom.endswith('vercel.app') and 'deployment' not in dom:
-              print('https://'+dom); break
-          " 2>/dev/null || echo "$DEPLOY_URL")
-
-          NEXTAUTH_URL="${PROD_ALIAS:-$DEPLOY_URL}"
-
-          # Remove old NEXTAUTH_URL vars
-          EXISTING=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN")
-          for EID in $(echo "$EXISTING" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          for e in d.get('envs',[]):
-            if e.get('key')=='NEXTAUTH_URL':
-              print(e['id'])
-          " 2>/dev/null); do
-            curl -s -X DELETE \
-              "https://api.vercel.com/v10/projects/${PROJ_ID}/env/${EID}${TPARAM}" \
-              -H "Authorization: Bearer $VERCEL_TOKEN" || true
-          done
-
-          curl -s -X POST \
-            "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"key\":\"NEXTAUTH_URL\",\"value\":\"${NEXTAUTH_URL}\",\"type\":\"plain\",\"target\":[\"production\",\"preview\"]}"
-
-          set -o pipefail
-          vercel deploy --prod --token "$VERCEL_TOKEN" --yes < /dev/null 2>&1 | tee /tmp/deploy2.log
-          FINAL_URL=$(grep -Eo 'https://[a-z0-9._-]+\.vercel\.app' /tmp/deploy2.log | tail -1)
-
+          vercel deploy --prod --token "$VERCEL_TOKEN" --yes < /dev/null 2>&1 | tee /tmp/deploy.log
+          FINAL_URL=$(grep -Eo 'https://[a-z0-9._-]+\.vercel\.app' /tmp/deploy.log | tail -1)
           echo ""
           echo "════════════════════════════════════════════"
           echo "🌐  LIVE:   $FINAL_URL"
