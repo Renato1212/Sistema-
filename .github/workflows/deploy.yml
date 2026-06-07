@@ -16,3 +16,110 @@ on:
 concurrency:
   group: deploy-vercel
   cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      # ── Find team + project, write .vercel/project.json ─────────────────────
+      - name: Resolve Vercel project
+        id: vproject
+        run: |
+          TEAM_RESP=$(curl -s "https://api.vercel.com/v2/teams" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          TEAM_ID=$(echo "$TEAM_RESP" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+ts=d.get('teams',[])
+print(ts[0]['id'] if ts else '')
+" 2>/dev/null || echo "")
+
+          FIND_URL="https://api.vercel.com/v9/projects/crm-claudia-pacheco"
+          if [ -n "$TEAM_ID" ]; then FIND_URL="${FIND_URL}?teamId=${TEAM_ID}"; fi
+          FIND=$(curl -s "$FIND_URL" -H "Authorization: Bearer $VERCEL_TOKEN")
+          PROJ_ID=$(echo "$FIND" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+
+          if [ -z "$PROJ_ID" ]; then
+            CREATE_URL="https://api.vercel.com/v10/projects"
+            if [ -n "$TEAM_ID" ]; then CREATE_URL="${CREATE_URL}?teamId=${TEAM_ID}"; fi
+            CREATE=$(curl -s -X POST "$CREATE_URL" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"crm-claudia-pacheco","framework":"nextjs","nodeVersion":"20.x"}')
+            PROJ_ID=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$PROJ_ID" ]; then echo "❌ No project"; exit 1; fi
+
+          echo "team_id=$TEAM_ID" >> $GITHUB_OUTPUT
+          echo "project_id=$PROJ_ID" >> $GITHUB_OUTPUT
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s"}' "$PROJ_ID" "$TEAM_ID" > .vercel/project.json
+          echo "✅ Project: $PROJ_ID | Team: $TEAM_ID"
+
+      # ── Ensure required env vars exist (idempotent — skip if present) ──────
+      - name: Ensure env vars
+        run: |
+          PROJ_ID="${{ steps.vproject.outputs.project_id }}"
+          TEAM_ID="${{ steps.vproject.outputs.team_id }}"
+          TPARAM=""
+          if [ -n "$TEAM_ID" ]; then TPARAM="?teamId=${TEAM_ID}"; fi
+
+          EXISTING=$(curl -s "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+
+          has_key() { echo "$EXISTING" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+print('yes' if any(e.get('key')=='$1' for e in d.get('envs',[])) else 'no')
+" 2>/dev/null || echo "no"; }
+
+          set_key() {
+            curl -s -X POST "https://api.vercel.com/v10/projects/${PROJ_ID}/env${TPARAM}" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"key\":\"$1\",\"value\":\"$2\",\"type\":\"$3\",\"target\":[\"production\",\"preview\"]}" > /dev/null
+            echo "✅ set $1"
+          }
+
+          if [ "$(has_key AUTH_SECRET)" = "no" ]; then
+            set_key AUTH_SECRET "$(openssl rand -base64 32)" encrypted
+          else
+            echo "↪︎ AUTH_SECRET already set"
+          fi
+
+          if [ "$(has_key AUTH_TRUST_HOST)" = "no" ]; then
+            set_key AUTH_TRUST_HOST "true" plain
+          else
+            echo "↪︎ AUTH_TRUST_HOST already set"
+          fi
+
+      # ── Single production deploy ────────────────────────────────────
+      - name: Deploy to Vercel
+        run: |
+          set -o pipefail
+          vercel deploy --prod --token "$VERCEL_TOKEN" --yes < /dev/null 2>&1 | tee /tmp/deploy.log
+          FINAL_URL=$(grep -Eo 'https://[a-z0-9._-]+\.vercel\.app' /tmp/deploy.log | tail -1)
+          echo ""
+          echo "════════════════════════════════════════════"
+          echo "🌐  LIVE:   $FINAL_URL"
+          echo "📧  Login:  admin@clinicacp.com"
+          echo "🔑  Senha:  admin123"
+          echo "════════════════════════════════════════════"
