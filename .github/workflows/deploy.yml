@@ -38,7 +38,7 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # ── Find team + project, write .vercel/project.json ─────────────────────
+      # ── Find team + project, write .vercel/project.json ───────────────────────
       - name: Resolve Vercel project
         id: vproject
         run: |
