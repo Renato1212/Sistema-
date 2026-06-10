@@ -39,16 +39,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={clsx(
-              "flex items-center gap-3 px-4 py-3 rounded-sm border shadow-lg pointer-events-auto min-w-[280px] max-w-xs",
+              "flex items-center gap-3 px-4 py-3 rounded-xl border shadow-apple backdrop-blur-md pointer-events-auto min-w-[280px] max-w-xs",
               {
-                "bg-emerald-50 border-emerald-200 text-emerald-800": t.type === "success",
-                "bg-red-50 border-red-200 text-red-800": t.type === "error",
-                "bg-marfim border-areia text-cacau": t.type === "info",
+                "bg-surface/95 border-emerald-400/30 text-emerald-200": t.type === "success",
+                "bg-surface/95 border-rose/40 text-rose": t.type === "error",
+                "bg-surface/95 border-areia/30 text-cacau": t.type === "info",
               }
             )}
           >
-            {t.type === "success" && <CheckCircle size={16} className="shrink-0 text-emerald-600" />}
-            {t.type === "error" && <AlertCircle size={16} className="shrink-0 text-red-600" />}
+            {t.type === "success" && <CheckCircle size={16} className="shrink-0 text-emerald-400" />}
+            {t.type === "error" && <AlertCircle size={16} className="shrink-0 text-rose" />}
             {t.type === "info" && <Info size={16} className="shrink-0 text-champanhe" />}
             <p className="text-sm flex-1">{t.message}</p>
             <button onClick={() => remove(t.id)} className="shrink-0 text-current/50 hover:text-current">

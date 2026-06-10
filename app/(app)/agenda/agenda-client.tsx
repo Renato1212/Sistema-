@@ -144,7 +144,8 @@ export function AgendaClient({ procedureTypes, locations = [] }: Props) {
     <div className="p-4 sm:p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="font-bodoni text-display-md text-cacau">Agenda</h1>
+          <p className="kicker mb-1.5">Consultas</p>
+          <h1 className="font-bodoni font-bold text-display-md text-cacau">Agenda</h1>
           <p className="text-sm text-cacau/40 mt-1">{appointments.length} agendamento{appointments.length !== 1 ? "s" : ""}</p>
         </div>
         <Button onClick={openNew} size="sm">
@@ -215,11 +216,11 @@ export function AgendaClient({ procedureTypes, locations = [] }: Props) {
                   <p className="text-xs text-cacau/40 mb-2">{a.location?.name ?? a.locationText}</p>
                 )}
                 {a.notes && <p className="text-xs text-cacau/35 mb-2 italic">{a.notes}</p>}
-                <div className="flex items-center gap-2 pt-2 border-t border-black/[0.04]">
-                  <button onClick={() => openEdit(a)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cacau/50 hover:text-champanhe border border-black/10 rounded-full transition-all touch-manipulation">
+                <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                  <button onClick={() => openEdit(a)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cacau/50 hover:text-champanhe border border-white/10 rounded-full transition-all touch-manipulation">
                     <Edit2 size={12} /> Editar
                   </button>
-                  <button onClick={() => handleDelete(a.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cacau/50 hover:text-red-500 border border-black/10 rounded-full transition-all touch-manipulation">
+                  <button onClick={() => handleDelete(a.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cacau/50 hover:text-rose border border-white/10 rounded-full transition-all touch-manipulation">
                     <Trash2 size={12} /> Excluir
                   </button>
                 </div>
@@ -231,7 +232,7 @@ export function AgendaClient({ procedureTypes, locations = [] }: Props) {
           <div className="hidden sm:block cp-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[640px]">
-                <thead className="bg-areia/10 border-b border-black/5">
+                <thead className="bg-areia/[0.06] border-b border-white/[0.06]">
                   <tr>
                     <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Nome</th>
                     <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Procedimento</th>
@@ -241,9 +242,9 @@ export function AgendaClient({ procedureTypes, locations = [] }: Props) {
                     <th className="px-5 py-3.5"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-black/[0.04]">
+                <tbody className="divide-y divide-white/[0.05]">
                   {appointments.map((a) => (
-                    <tr key={a.id} className="hover:bg-areia/[0.08] transition-colors">
+                    <tr key={a.id} className="hover:bg-areia/[0.06] transition-colors">
                       <td className="px-5 py-4">
                         {a.patient ? (
                           <Link href={`/pacientes/${a.patient.id}`} className="font-medium text-cacau hover:text-champanhe transition-colors">
@@ -269,10 +270,10 @@ export function AgendaClient({ procedureTypes, locations = [] }: Props) {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1.5 justify-end">
-                          <button onClick={() => openEdit(a)} className="p-1.5 text-cacau/30 hover:text-champanhe hover:bg-champanhe/[0.08] rounded-lg transition-all" title="Editar">
+                          <button onClick={() => openEdit(a)} className="p-1.5 text-cacau/30 hover:text-champanhe hover:bg-champanhe/10 rounded-lg transition-all" title="Editar">
                             <Edit2 size={14} />
                           </button>
-                          <button onClick={() => handleDelete(a.id)} className="p-1.5 text-cacau/30 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
+                          <button onClick={() => handleDelete(a.id)} className="p-1.5 text-cacau/30 hover:text-rose hover:bg-rose/10 rounded-lg transition-all" title="Excluir">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -299,9 +300,9 @@ export function AgendaClient({ procedureTypes, locations = [] }: Props) {
                 className="cp-field"
               />
               {patientResults.length > 0 && (
-                <div className="absolute top-full inset-x-0 z-20 bg-white border border-black/[0.08] rounded-xl shadow-apple mt-1 max-h-40 overflow-y-auto">
+                <div className="absolute top-full inset-x-0 z-20 bg-surface-2 border border-areia/25 rounded-xl shadow-apple mt-1 max-h-40 overflow-y-auto">
                   {patientResults.map((p) => (
-                    <button key={p.id} type="button" className="w-full text-left px-4 py-3 text-sm hover:bg-areia/20 first:rounded-t-xl last:rounded-b-xl transition-colors touch-manipulation"
+                    <button key={p.id} type="button" className="w-full text-left px-4 py-3 text-sm hover:bg-areia/10 first:rounded-t-xl last:rounded-b-xl transition-colors touch-manipulation"
                       onClick={() => {
                         setForm((f) => ({ ...f, patientId: p.id, nameSnapshot: p.fullName }));
                         setPatientSearch(p.fullName);

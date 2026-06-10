@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { clsx } from "clsx";
 import { CalendarDays, Users, BarChart2, LogOut } from "lucide-react";
+import { TENANT } from "@/lib/brand";
 
 const navItems = [
   { href: "/agenda", label: "Agenda", icon: CalendarDays },
@@ -12,26 +13,41 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart2 },
 ];
 
+function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
+  return (
+    <div
+      className={clsx(
+        "rounded-full bg-grad flex items-center justify-center text-[#241A10] font-bodoni font-bold flex-shrink-0 shadow-gold",
+        size === "md" ? "w-10 h-10 text-base" : "w-7 h-7 text-xs"
+      )}
+    >
+      {TENANT.initials}
+    </div>
+  );
+}
+
 export function Nav() {
   const pathname = usePathname();
 
   return (
     <>
       {/* ── Desktop sidebar ─────────────────────────────────────────── */}
-      <nav className="hidden md:flex hero-dark fixed left-0 top-0 h-full w-[220px] text-white flex-col z-40 border-r border-black/20">
-        <div className="px-5 py-7 border-b border-white/[0.07]">
+      <nav className="hidden md:flex fixed left-0 top-0 h-full w-[230px] bg-espresso/90 backdrop-blur-md text-cacau flex-col z-40 border-r border-white/[0.06]">
+        <div className="px-5 py-7 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-champanhe flex items-center justify-center text-white font-bodoni font-bold text-base flex-shrink-0 shadow-lg">
-              CP
-            </div>
+            <BrandMark />
             <div>
-              <p className="font-bodoni text-sm text-white leading-tight tracking-wide">Cláudia Pacheco</p>
-              <p className="text-[10px] text-white/40 font-hanken tracking-[0.15em] uppercase mt-0.5">Clínica</p>
+              <p className="font-bodoni font-semibold text-sm text-cacau leading-tight tracking-wide">
+                {TENANT.shortName}
+              </p>
+              <p className="text-[10px] text-cacau/35 font-hanken tracking-[0.15em] uppercase mt-0.5">
+                {TENANT.subtitle}
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 px-3 py-5 flex flex-col gap-0.5">
+        <div className="flex-1 px-3 py-5 flex flex-col gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
@@ -39,12 +55,15 @@ export function Nav() {
                 key={href}
                 href={href}
                 className={clsx(
-                  "flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm transition-all duration-200",
+                  "relative flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm transition-all duration-200",
                   active
-                    ? "bg-champanhe/20 text-champanhe font-medium"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/[0.06]"
+                    ? "text-areia bg-champanhe/[0.12] font-medium shadow-[inset_0_0_0_1px_rgba(221,190,137,0.25)]"
+                    : "text-cacau/45 hover:text-cacau/85 hover:bg-white/[0.05]"
                 )}
               >
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full bg-grad" />
+                )}
                 <Icon size={17} strokeWidth={active ? 2 : 1.5} />
                 {label}
               </Link>
@@ -52,10 +71,10 @@ export function Nav() {
           })}
         </div>
 
-        <div className="px-3 pb-8 pt-3 border-t border-white/[0.07]">
+        <div className="px-3 pb-8 pt-3 border-t border-white/[0.06]">
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex items-center gap-3 px-3.5 py-2.5 w-full text-sm text-white/35 hover:text-white/60 transition-all duration-200 rounded-xl hover:bg-white/[0.06]"
+            className="flex items-center gap-3 px-3.5 py-2.5 w-full text-sm text-cacau/35 hover:text-cacau/70 transition-all duration-200 rounded-xl hover:bg-white/[0.05]"
           >
             <LogOut size={16} strokeWidth={1.5} />
             Sair
@@ -64,17 +83,15 @@ export function Nav() {
       </nav>
 
       {/* ── Mobile top bar ──────────────────────────────────────────── */}
-      <header className="md:hidden hero-dark fixed top-0 inset-x-0 h-14 text-white flex items-center justify-between px-4 z-40 border-b border-white/[0.07]">
+      <header className="md:hidden fixed top-0 inset-x-0 h-14 bg-espresso/85 backdrop-blur-lg text-cacau flex items-center justify-between px-4 z-40 border-b border-white/[0.06]">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-champanhe flex items-center justify-center font-bodoni font-bold text-xs shadow-sm">
-            CP
-          </div>
-          <p className="font-bodoni text-sm tracking-wide">Cláudia Pacheco</p>
+          <BrandMark size="sm" />
+          <p className="font-bodoni font-semibold text-sm tracking-wide">{TENANT.shortName}</p>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           aria-label="Sair"
-          className="p-2 -mr-1 text-white/45 hover:text-white transition-colors rounded-xl touch-manipulation"
+          className="p-2 -mr-1 text-cacau/40 hover:text-cacau transition-colors rounded-xl touch-manipulation"
         >
           <LogOut size={18} strokeWidth={1.5} />
         </button>
@@ -82,7 +99,7 @@ export function Nav() {
 
       {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-marfim/90 backdrop-blur-lg border-t border-black/[0.06] pb-safe"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-espresso/90 backdrop-blur-lg border-t border-white/[0.07] pb-safe"
         aria-label="Navegação principal"
       >
         <div className="flex items-stretch h-16">
@@ -94,10 +111,13 @@ export function Nav() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={clsx(
-                  "flex-1 flex flex-col items-center justify-center gap-1 touch-manipulation transition-colors active:bg-black/[0.03]",
-                  active ? "text-champanhe" : "text-cacau/45"
+                  "relative flex-1 flex flex-col items-center justify-center gap-1 touch-manipulation transition-colors active:bg-white/[0.04]",
+                  active ? "text-areia" : "text-cacau/40"
                 )}
               >
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-9 h-[2.5px] rounded-full bg-grad" />
+                )}
                 <Icon size={22} strokeWidth={active ? 2.2 : 1.7} />
                 <span className={clsx("text-[10px] tracking-wide", active ? "font-semibold" : "font-medium")}>
                   {label}

@@ -2,31 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,700;1,6..96,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&display=swap');
 
+/* ===========================================================
+   "ESTÉTICA FACIAL DE LUXO" — espresso profundo + ouro
+   champanhe + rosé. Gradiente assinatura ouro→rosé.
+   =========================================================== */
 :root {
-  --color-marfim: #F4EDE2;
-  --color-areia: #DACAB4;
-  --color-cacau: #241C18;
-  --color-argila: #BE8C76;
-  --color-terracota: #9F6A53;
-  --color-champanhe: #B5915E;
-  --font-bodoni: 'Bodoni Moda', Georgia, serif;
-  --font-newsreader: 'Newsreader', Georgia, serif;
-  --font-hanken: 'Hanken Grotesk', system-ui, sans-serif;
+  --bg: #140F0B;
+  --bg-2: #19130D;
+  --surface: #211913;
+  --surface-2: #2A2019;
+  --line: rgba(255, 248, 236, 0.08);
+  --line-2: rgba(221, 190, 137, 0.22);
+  --text: #F4ECDF;
+  --muted: #B6A48C;
+  --dim: #6E5F4D;
+  --gold: #C9A368;
+  --gold-2: #DDBE89;
+  --rose: #E0A89E;
+  --grad: linear-gradient(100deg, #DDBE89 0%, #C9A368 38%, #E0A89E 100%);
 }
 
 html {
-  background-color: var(--color-marfim);
-  color: var(--color-cacau);
-  font-family: var(--font-hanken);
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Instrument Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
 }
 
 body {
   min-height: 100vh;
-  background-color: #F4EDE2;
+  background-color: var(--bg);
 }
 
 /* Smooth transitions on interactive elements */
@@ -36,28 +45,122 @@ a, button, input, select, textarea {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Apple-style fine scrollbar */
+/* Fine scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(36,28,24,0.15); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(36,28,24,0.25); }
+::-webkit-scrollbar-thumb { background: rgba(221, 190, 137, 0.18); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(221, 190, 137, 0.32); }
 
-/* Focus ring — champanhe glow */
+/* Focus ring — gold glow */
 *:focus-visible {
-  outline: 2px solid #B5915E;
+  outline: 2px solid var(--gold-2);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
 /* Text selection */
 ::selection {
-  background-color: rgba(181,145,94,0.2);
-  color: #241C18;
+  background-color: rgba(201, 163, 104, 0.3);
+  color: #F4ECDF;
 }
 
-/* Clean Apple-style dark surface — subtle vertical depth, no busy texture */
+/* ── Film grain overlay ──────────────────────────────────── */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Aurora blobs ────────────────────────────────────────── */
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(95px);
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.blob-gold {
+  width: 44vw; height: 44vw;
+  background: var(--gold);
+  opacity: 0.13;
+  top: -14vw; left: -10vw;
+  animation: drift1 26s ease-in-out infinite;
+}
+.blob-rose {
+  width: 38vw; height: 38vw;
+  background: var(--rose);
+  opacity: 0.10;
+  top: 45vh; right: -14vw;
+  animation: drift2 32s ease-in-out infinite;
+}
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(5vw, 4vh) scale(1.1); }
+}
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-4vw, -4vh) scale(1.08); }
+}
+@media (max-width: 760px) {
+  .blob { filter: blur(58px); animation: none !important; }
+  .blob-gold { width: 70vw; height: 70vw; opacity: 0.15; }
+  .blob-rose { width: 60vw; height: 60vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blob { animation: none !important; }
+}
+
+/* ── Signature gradient text (shimmer) ───────────────────── */
+.grad-text {
+  background: var(--grad);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 7s linear infinite;
+}
+@keyframes shimmer {
+  to { background-position: 220% center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grad-text { animation: none; }
+}
+
+/* ── Hero panel (KPI / patient header) — glow gradient border ── */
 .hero-dark {
-  background-image: linear-gradient(155deg, #2E2520 0%, #241C18 52%, #1B1410 100%);
+  position: relative;
+  background:
+    radial-gradient(120% 140% at 10% 0%, rgba(221, 190, 137, 0.10) 0%, transparent 45%),
+    radial-gradient(120% 140% at 95% 100%, rgba(224, 168, 158, 0.08) 0%, transparent 45%),
+    linear-gradient(160deg, #241B14 0%, #1B1410 60%, #170F0B 100%);
+}
+.hero-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--grad);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* ── Kicker (uppercase label) ────────────────────────────── */
+.kicker {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold-2);
 }
 
 /* Safe-area padding for iOS home indicator on the bottom tab bar */
@@ -68,15 +171,64 @@ a, button, input, select, textarea {
   height: calc(64px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Card utility */
+/* ── Component utilities ─────────────────────────────────── */
 @layer components {
   .cp-card {
-    @apply bg-white rounded-xl border border-black/5 shadow-card;
+    @apply bg-surface rounded-xl border border-white/[0.07] shadow-card;
+  }
+  .cp-card-hover {
+    @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-areia/25 hover:shadow-card-hover;
   }
   .cp-field {
-    @apply w-full px-3.5 py-2.5 text-sm bg-white border border-black/10 rounded-sm text-cacau placeholder:text-cacau/30 focus:outline-none focus:border-champanhe focus:ring-2 focus:ring-champanhe/[0.15] transition-all;
+    @apply w-full px-3.5 py-2.5 text-sm bg-surface-2 border border-white/10 rounded-sm text-cacau placeholder:text-cacau/25 focus:outline-none focus:border-champanhe focus:ring-2 focus:ring-champanhe/[0.18] transition-all;
   }
   .cp-label {
-    @apply text-[11px] font-medium text-cacau/50 uppercase tracking-wider block mb-1.5;
+    @apply text-[11px] font-medium text-cacau/45 uppercase tracking-wider block mb-1.5 font-bodoni;
   }
+}
+
+/* Glow gradient border for premium cards */
+.glow-card {
+  position: relative;
+}
+.glow-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--grad);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Primary button shine sweep */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-18deg);
+  transition: left 0.6s ease;
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  left: 140%;
+}
+
+/* Native date/time picker indicators — make them visible on dark */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(0.3) saturate(2) hue-rotate(-10deg);
+  cursor: pointer;
 }

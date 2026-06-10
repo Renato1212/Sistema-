@@ -197,7 +197,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
         <div className="flex items-center gap-2 flex-wrap">
           <a
             href={`/api/patients/${patient.id}/export`}
-            className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-black/10 rounded-full px-3.5 py-1.5 transition-all hover:border-black/15 hover:bg-white touch-manipulation"
+            className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-white/10 rounded-full px-3.5 py-1.5 transition-all hover:border-areia/40 hover:bg-white/[0.04] touch-manipulation"
           >
             <Download size={12} />
             Exportar
@@ -221,36 +221,36 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       </div>
 
       {/* Header card */}
-      <div className="hero-dark text-white rounded-2xl p-5 sm:p-8 mb-6 sm:mb-8 shadow-apple">
-        <h1 className="font-bodoni text-2xl sm:text-display-md text-white">{patient.fullName}</h1>
+      <div className="hero-dark text-cacau rounded-2xl p-5 sm:p-8 mb-6 sm:mb-8 shadow-apple">
+        <h1 className="font-bodoni text-2xl sm:text-display-md font-bold">{patient.fullName}</h1>
         {patient.deletedAt && (
-          <span className="text-xs text-red-300/80 mt-1 block">Arquivado em {formatDate(patient.deletedAt)}</span>
+          <span className="text-xs text-rose/80 mt-1 block">Arquivado em {formatDate(patient.deletedAt)}</span>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-5 sm:mt-7 text-sm">
           {patient.birthDate && (
             <div>
-              <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Nascimento</p>
+              <p className="text-areia/70 text-[10px] uppercase tracking-[0.15em] mb-1 font-bodoni font-medium">Nascimento</p>
               <p>{formatDate(patient.birthDate)}</p>
-              <p className="text-white/50 text-xs mt-0.5">{calculateAge(patient.birthDate)} anos</p>
+              <p className="text-cacau/45 text-xs mt-0.5">{calculateAge(patient.birthDate)} anos</p>
             </div>
           )}
           {patient.email && (
             <div className="col-span-2 sm:col-span-1">
-              <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">E-mail</p>
+              <p className="text-areia/70 text-[10px] uppercase tracking-[0.15em] mb-1 font-bodoni font-medium">E-mail</p>
               <p className="break-all text-sm">{patient.email}</p>
             </div>
           )}
           {patient.phone && (
             <div>
-              <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Telefone</p>
+              <p className="text-areia/70 text-[10px] uppercase tracking-[0.15em] mb-1 font-bodoni font-medium">Telefone</p>
               <p>{patient.phone}</p>
             </div>
           )}
           <div>
-            <p className="text-white/35 text-[10px] uppercase tracking-[0.15em] mb-1">Marketing</p>
+            <p className="text-areia/70 text-[10px] uppercase tracking-[0.15em] mb-1 font-bodoni font-medium">Marketing</p>
             <p>{patient.marketingConsent ? "✓ Consentiu" : "Não consentiu"}</p>
             {patient.marketingConsentDate && (
-              <p className="text-white/40 text-xs mt-0.5">{formatDate(patient.marketingConsentDate)}</p>
+              <p className="text-cacau/40 text-xs mt-0.5">{formatDate(patient.marketingConsentDate)}</p>
             )}
           </div>
         </div>
@@ -267,7 +267,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       {/* Procedures */}
       <section className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bodoni text-xl text-cacau">Procedimentos</h2>
+          <h2 className="font-bodoni font-semibold text-xl text-cacau">Procedimentos</h2>
           <Button size="sm" onClick={() => setShowAddProcedure(true)}>
             <Plus size={14} />
             Adicionar
@@ -280,7 +280,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
             <div className="cp-card overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[380px]">
-                  <thead className="bg-areia/10 border-b border-black/5">
+                  <thead className="bg-areia/[0.06] border-b border-white/[0.06]">
                     <tr>
                       <th className="text-left px-4 sm:px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Procedimento</th>
                       <th className="text-left px-4 sm:px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Data</th>
@@ -288,9 +288,9 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                       <th className="px-4 sm:px-5 py-3.5 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-black/[0.04]">
+                  <tbody className="divide-y divide-white/[0.05]">
                     {patient.procedures.map((proc) => (
-                      <tr key={proc.id} className="hover:bg-areia/[0.08] transition-colors">
+                      <tr key={proc.id} className="hover:bg-areia/[0.06] transition-colors">
                         <td className="px-4 sm:px-5 py-3.5">
                           {proc.procedureType?.name ?? proc.customName ?? "—"}
                           {proc.notes && <p className="text-xs text-cacau/35 mt-0.5">{proc.notes}</p>}
@@ -302,7 +302,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                         <td className="px-4 sm:px-5 py-3.5 text-right">
                           <button
                             onClick={() => handleDeleteProcedure(proc.id)}
-                            className="p-2 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all touch-manipulation"
+                            className="p-2 text-cacau/25 hover:text-rose hover:bg-rose/10 rounded-lg transition-all touch-manipulation"
                             title="Remover"
                           >
                             <Trash2 size={13} />
@@ -329,7 +329,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
       {/* Photos */}
       <section className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bodoni text-xl text-cacau">Fotos</h2>
+          <h2 className="font-bodoni font-semibold text-xl text-cacau">Fotos</h2>
           <Button size="sm" variant="secondary" onClick={() => setShowUpload(true)}>
             <Upload size={14} />
             Enviar
@@ -344,7 +344,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {photos.map((att) => (
-              <div key={att.id} className="relative group border border-black/5 rounded-xl overflow-hidden aspect-square bg-areia/15 shadow-card">
+              <div key={att.id} className="relative group border border-white/[0.07] rounded-xl overflow-hidden aspect-square bg-surface-2 shadow-card">
                 {att.mimeType.startsWith("image/") ? (
                   <img
                     src={`/api/files/${att.storageKey}`}
@@ -356,7 +356,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                     <FileText size={32} className="text-cacau/25" />
                   </div>
                 )}
-                <div className="absolute bottom-0 inset-x-0 bg-cacau/80 text-white text-xs p-2 flex items-center justify-between opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity rounded-b-xl">
+                <div className="absolute bottom-0 inset-x-0 bg-black/70 text-cacau text-xs p-2 flex items-center justify-between opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity rounded-b-xl">
                   <span className="truncate">{pt.attachment.type[att.type as keyof typeof pt.attachment.type] ?? att.type}</span>
                   <button onClick={() => handleDeleteAttachment(att.id)} className="shrink-0 ml-1 p-1 touch-manipulation">
                     <Trash2 size={12} />
@@ -370,7 +370,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
 
       {/* Documents */}
       <section className="mb-6 sm:mb-8">
-        <h2 className="font-bodoni text-xl text-cacau mb-4">Documentos</h2>
+        <h2 className="font-bodoni font-semibold text-xl text-cacau mb-4">Documentos</h2>
         {docs.length === 0 ? (
           <p className="text-sm text-cacau/35 italic">Nenhum documento enviado.</p>
         ) : (
@@ -395,7 +395,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
                   >
                     Baixar
                   </a>
-                  <button onClick={() => handleDeleteAttachment(att.id)} className="p-2 text-cacau/25 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all touch-manipulation">
+                  <button onClick={() => handleDeleteAttachment(att.id)} className="p-2 text-cacau/25 hover:text-rose hover:bg-rose/10 rounded-lg transition-all touch-manipulation">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -528,7 +528,7 @@ export function PatientDetailClient({ patient: initialPatient, procedureTypes }:
               type="file"
               accept="image/jpeg,image/png,image/webp,application/pdf"
               onChange={(e) => setUploadForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))}
-              className="w-full text-sm text-cacau/60 file:mr-3 file:py-2 file:px-4 file:border file:border-black/10 file:rounded-full file:text-xs file:bg-white file:text-cacau hover:file:bg-areia/20 transition-all"
+              className="w-full text-sm text-cacau/60 file:mr-3 file:py-2 file:px-4 file:border file:border-areia/30 file:rounded-full file:text-xs file:bg-surface-2 file:text-cacau hover:file:bg-areia/10 transition-all"
             />
           </div>
           <p className="text-xs text-cacau/35">As fotos clínicas requerem consentimento documentado do paciente.</p>

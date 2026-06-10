@@ -21,12 +21,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           className={clsx(
             "cp-field",
-            error && "border-red-300 focus:border-red-400 focus:ring-red-200",
+            error && "border-rose/60 focus:border-rose focus:ring-rose/20",
             className
           )}
           {...props}
         />
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p className="text-xs text-rose">{error}</p>}
       </div>
     );
   }
