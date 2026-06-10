@@ -20,15 +20,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={selectId}
           className={clsx(
-            "w-full px-3 py-2 text-sm bg-white border border-areia rounded-sm text-cacau focus:outline-none focus:border-champanhe focus:ring-1 focus:ring-champanhe transition-colors appearance-none",
-            error && "border-red-400",
+            "cp-field appearance-none",
+            error && "border-rose/60",
             className
           )}
           {...props}
         >
           {children}
         </select>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-rose">{error}</p>}
       </div>
     );
   }

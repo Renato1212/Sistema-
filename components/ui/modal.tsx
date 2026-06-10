@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     <dialog
       ref={dialogRef}
       className={clsx(
-        "rounded-2xl shadow-apple bg-marfim border border-black/5 backdrop:bg-cacau/50 backdrop:backdrop-blur-sm p-0 max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)]",
+        "rounded-2xl shadow-apple bg-surface text-cacau border border-white/10 backdrop:bg-black/70 backdrop:backdrop-blur-sm p-0 max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)]",
         {
           "sm:max-w-sm": size === "sm",
           "sm:max-w-lg": size === "md",
@@ -49,13 +49,13 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
         if (e.target === dialogRef.current) onClose();
       }}
     >
-      <div className="sticky top-0 z-10 bg-marfim/95 backdrop-blur-sm border-b border-black/5 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-white/[0.07] px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
         {title && (
-          <h2 className="font-bodoni text-base sm:text-lg text-cacau">{title}</h2>
+          <h2 className="font-bodoni font-semibold text-base sm:text-lg text-cacau">{title}</h2>
         )}
         <button
           onClick={onClose}
-          className="ml-auto p-2 text-cacau/40 hover:text-cacau hover:bg-black/5 rounded-full transition-all touch-manipulation"
+          className="ml-auto p-2 text-cacau/40 hover:text-cacau hover:bg-white/[0.06] rounded-full transition-all touch-manipulation"
           aria-label="Fechar"
         >
           <X size={17} />

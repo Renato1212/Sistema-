@@ -70,11 +70,11 @@ export function PatientForm({ defaultValues, onSuccess, onCancel, patientId }: P
       <Textarea label="Comentários" {...register("notes")} rows={3} />
 
       {/* Marketing consent */}
-      <div className="border border-black/[0.08] rounded-xl p-4 bg-areia/10">
+      <div className="border border-white/10 rounded-xl p-4 bg-areia/[0.06]">
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
-            className="w-4 h-4 rounded border-areia/60 text-champanhe focus:ring-champanhe accent-champanhe"
+            className="w-4 h-4 rounded border-areia/40 text-champanhe focus:ring-champanhe accent-champanhe"
             {...register("marketingConsent")}
           />
           <span className="text-sm text-cacau">Consentimento para Marketing</span>
@@ -87,7 +87,7 @@ export function PatientForm({ defaultValues, onSuccess, onCancel, patientId }: P
       </div>
 
       {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">{error}</p>
+        <p className="text-xs text-rose bg-rose/10 border border-rose/25 rounded-xl px-3.5 py-2.5">{error}</p>
       )}
 
       <div className="flex justify-end gap-3 pt-2">

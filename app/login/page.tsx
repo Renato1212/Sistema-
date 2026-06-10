@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PRODUCT, TENANT } from "@/lib/brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,30 +32,29 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-marfim flex items-center justify-center relative overflow-hidden">
-      {/* Soft champagne glow — clean, no busy texture */}
-      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full bg-champanhe/10 blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 w-full max-w-sm mx-4">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4">
+      <div className="relative z-10 w-full max-w-sm">
         {/* Brand mark */}
         <div className="text-center mb-10">
-          <div className="w-20 h-20 rounded-full bg-cacau flex items-center justify-center text-white font-bodoni font-bold text-3xl mx-auto mb-6 shadow-apple ring-4 ring-cacau/10">
-            CP
+          <div className="w-20 h-20 rounded-full bg-grad flex items-center justify-center text-[#241A10] font-bodoni font-bold text-3xl mx-auto mb-7 shadow-gold-lg">
+            {TENANT.initials}
           </div>
-          <h1 className="font-bodoni text-[1.6rem] text-cacau tracking-wide leading-tight">Cláudia Pacheco</h1>
-          <p className="text-[11px] text-cacau/40 font-hanken mt-1.5 uppercase tracking-[0.18em]">
-            Sistema de Gestão Clínica
+          <h1 className="font-bodoni font-bold text-[1.7rem] tracking-tight leading-tight">
+            <span className="grad-text">{TENANT.shortName}</span>
+          </h1>
+          <p className="kicker mt-2.5">
+            {PRODUCT.name} · {PRODUCT.tagline}
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-black/5 rounded-2xl shadow-apple px-8 py-9">
+        <div className="glow-card bg-surface/80 backdrop-blur-md rounded-2xl shadow-apple px-8 py-9">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <Input
               name="email"
               type="email"
               label="E-mail"
-              placeholder="admin@clinicacp.com"
+              placeholder="o-seu@email.com"
               autoComplete="email"
               required
             />
@@ -67,7 +67,7 @@ export default function LoginPage() {
               required
             />
             {error && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">
+              <p className="text-xs text-rose bg-rose/10 border border-rose/25 rounded-xl px-3.5 py-2.5">
                 {error}
               </p>
             )}
@@ -78,7 +78,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-cacau/25 mt-6">
-          Acesso exclusivo para equipa da clínica.
+          Acesso exclusivo para a equipa da clínica.
         </p>
       </div>
     </div>

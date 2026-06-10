@@ -46,7 +46,8 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="font-bodoni text-display-md text-cacau">Pacientes</h1>
+          <p className="kicker mb-1.5">Fichas clínicas</p>
+          <h1 className="font-bodoni font-bold text-display-md text-cacau">Pacientes</h1>
           <p className="text-sm text-cacau/40 mt-1">
             {patients.length} {patients.length === 1 ? "paciente" : "pacientes"}
           </p>
@@ -72,7 +73,7 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
         <Button type="submit" variant="secondary" size="sm">Buscar</Button>
         <Link
           href={showArchived ? "/pacientes" : "/pacientes?archived=1"}
-          className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-black/10 rounded-full px-3 py-1.5 transition-all hover:border-black/15 hover:bg-white shrink-0 touch-manipulation"
+          className="flex items-center gap-1.5 text-xs text-cacau/40 hover:text-cacau border border-white/10 rounded-full px-3 py-1.5 transition-all hover:border-areia/40 hover:bg-white/[0.04] shrink-0 touch-manipulation"
         >
           <Archive size={13} />
           <span className="hidden sm:inline">{showArchived ? "Ver ativos" : "Arquivados"}</span>
@@ -95,7 +96,7 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-cacau truncate">
                       {p.fullName}
-                      {p.deletedAt && <span className="ml-2 text-xs text-red-400">(arquivado)</span>}
+                      {p.deletedAt && <span className="ml-2 text-xs text-rose">(arquivado)</span>}
                     </p>
                     {p.email && <p className="text-sm text-cacau/50 truncate mt-0.5">{p.email}</p>}
                     {p.phone && <p className="text-xs text-cacau/40 mt-0.5">{p.phone}</p>}
@@ -103,7 +104,7 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
                   <div className="text-right shrink-0">
                     <p className="text-xs text-cacau/40">{p._count.procedures} proc.</p>
                     {p.marketingConsent && (
-                      <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 mt-1 inline-block">MKT ✓</span>
+                      <span className="text-xs text-emerald-300 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-0.5 mt-1 inline-block">MKT ✓</span>
                     )}
                   </div>
                 </div>
@@ -115,7 +116,7 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
           <div className="hidden sm:block cp-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[580px]">
-                <thead className="bg-areia/10 border-b border-black/5">
+                <thead className="bg-areia/[0.06] border-b border-white/[0.06]">
                   <tr>
                     <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Nome</th>
                     <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Contato</th>
@@ -124,13 +125,13 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
                     <th className="text-left px-5 py-3.5 text-[11px] uppercase tracking-wider text-cacau/40 font-medium">Marketing</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-black/[0.04]">
+                <tbody className="divide-y divide-white/[0.05]">
                   {patients.map((p) => (
-                    <tr key={p.id} className="hover:bg-areia/[0.08] transition-colors">
+                    <tr key={p.id} className="hover:bg-areia/[0.06] transition-colors">
                       <td className="px-5 py-4">
                         <Link href={`/pacientes/${p.id}`} className="font-medium text-cacau hover:text-champanhe transition-colors">
                           {p.fullName}
-                          {p.deletedAt && <span className="ml-2 text-xs text-red-400">(arquivado)</span>}
+                          {p.deletedAt && <span className="ml-2 text-xs text-rose">(arquivado)</span>}
                         </Link>
                       </td>
                       <td className="px-5 py-4 text-cacau/50">
@@ -143,7 +144,7 @@ export function PatientsClient({ patients, query, showArchived }: Props) {
                       <td className="px-5 py-4 text-cacau/50">{p._count.procedures}</td>
                       <td className="px-5 py-4">
                         {p.marketingConsent ? (
-                          <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">Sim</span>
+                          <span className="text-xs text-emerald-300 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2.5 py-0.5">Sim</span>
                         ) : (
                           <span className="text-xs text-cacau/30">—</span>
                         )}

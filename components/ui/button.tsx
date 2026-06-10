@@ -14,15 +14,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={clsx(
-          "inline-flex items-center justify-center gap-2 font-hanken font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champanhe focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
+          "inline-flex items-center justify-center gap-2 font-bodoni font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-areia focus-visible:ring-offset-2 focus-visible:ring-offset-marfim disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
           {
-            "bg-champanhe text-white hover:bg-terracota shadow-sm hover:shadow-md":
+            "btn-shine bg-champanhe text-[#241A10] hover:bg-areia shadow-gold hover:shadow-gold-lg":
               variant === "primary",
-            "border border-black/10 text-cacau bg-white hover:bg-areia/20 hover:border-black/15":
+            "border border-white/10 text-cacau bg-white/[0.04] hover:bg-champanhe/10 hover:border-areia/40":
               variant === "secondary",
-            "border border-red-200 text-red-700 bg-red-50/50 hover:bg-red-50 hover:border-red-300":
+            "border border-rose/30 text-rose bg-rose/[0.06] hover:bg-rose/[0.12] hover:border-rose/50":
               variant === "danger",
-            "text-cacau bg-transparent hover:bg-black/5":
+            "text-cacau bg-transparent hover:bg-white/[0.06]":
               variant === "ghost",
           },
           {
