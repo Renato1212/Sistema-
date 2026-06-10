@@ -2,7 +2,9 @@ name: 🚀 Deploy CRM to Vercel
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/charming-lovelace-HM3x6
   # Self-heal: retry every 6h so a deploy blocked by Vercel's free-tier
   # daily quota (api-deployments-free-per-day) lands automatically once the
   # rolling 24h window clears. Trivial against the 100/day cap; the
@@ -38,7 +40,7 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # ── Find team + project, write .vercel/project.json ─────────────────────
+      # ── Find team + project, write .vercel/project.json ───────────────────────
       - name: Resolve Vercel project
         id: vproject
         run: |
